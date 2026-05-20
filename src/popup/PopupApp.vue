@@ -1,112 +1,113 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import ProviderCard from '../components/ProviderCard.vue';
-import { getDefaultProviderQuotas } from '../providers';
-import type { ProviderQuota, RefreshQuotaResponse } from '../providers/types';
-import { loadProviderQuotas, saveProviderQuota } from '../storage/quotaStorage';
-import { getPrimaryPercent, getQuotaStatus } from '../utils/quotaStatus';
+import { getMockProviderQuotas } from '../providers';
+import type { ProviderQuota } from '../providers/types';
+import {
+  formatCommandStatus,
+  getAttentionMessage,
+  getBestProvider,
+  getBestProviderReason,
+  getTaskSuggestions,
+} from '../utils/recommendation';
+import { getWorstStatus } from '../utils/quotaStatus';
 
-const providers = ref<ProviderQuota[]>(getDefaultProviderQuotas());
+const providers = ref<ProviderQuota[]>(getMockProviderQuotas());
 const refreshError = ref('');
 const isRefreshing = ref(false);
 
-const recommendedProvider = computed(() => {
-  const sorted = [...providers.value].sort((left, right) => {
-    const leftPercent = getPrimaryPercent(left.limits) ?? -1;
-    const rightPercent = getPrimaryPercent(right.limits) ?? -1;
-    return rightPercent - leftPercent;
-  });
-
-  return sorted[0]?.providerName ?? 'Unknown';
-});
-
+const bestProvider = computed(() => getBestProvider(providers.value));
+const bestStatus = computed(() => (bestProvider.value ? getWorstStatus(bestProvider.value.limits) : 'unknown'));
+const bestReason = computed(() =>
+  bestProvider.value ? getBestProviderReason(bestProvider.value) : 'Open an AI provider page and refresh quota.',
+);
+const taskSuggestions = computed(() => getTaskSuggestions(providers.value));
+const attentionMessage = computed(() => getAttentionMessage(providers.value));
 const lastUpdated = computed(() => {
   const timestamps = providers.value
     .map((provider) => Date.parse(provider.updatedAt))
     .filter((timestamp) => Number.isFinite(timestamp));
 
-  if (timestamps.length === 0) {
-    return 'Unknown';
-  }
-
-  return new Date(Math.max(...timestamps)).toLocaleString();
+  return timestamps.length > 0 ? new Date(Math.max(...timestamps)).toLocaleTimeString() : 'Unknown';
 });
 
-onMounted(loadQuotas);
-
-async function loadQuotas(): Promise<void> {
-  const stored = await loadProviderQuotas();
-  providers.value = getDefaultProviderQuotas().map((quota) => stored[quota.providerId] ?? quota);
-}
-
-async function refreshActiveTabQuota(): Promise<void> {
+function refreshMockQuotas(): void {
   refreshError.value = '';
   isRefreshing.value = true;
 
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-    if (!tab.id) {
-      throw new Error('No active tab found.');
+  window.setTimeout(() => {
+    try {
+      providers.value = getMockProviderQuotas();
+    } catch {
+      refreshError.value = 'Could not read quota. Open Rate limits panel and refresh again.';
+    } finally {
+      isRefreshing.value = false;
     }
-
-    const response = await chrome.tabs.sendMessage(tab.id, {
-      type: 'REFRESH_QUOTA',
-    }) as RefreshQuotaResponse;
-
-    if (!response.ok || !response.quota) {
-      throw new Error(
-        response.error ??
-          'Could not read quota. Please open the Rate limits remaining panel, then refresh again.',
-      );
-    }
-
-    await saveProviderQuota(response.quota);
-    providers.value = providers.value.map((provider) =>
-      provider.providerId === response.quota?.providerId ? response.quota : provider,
-    );
-  } catch (error) {
-    refreshError.value =
-      error instanceof Error
-        ? error.message
-        : 'Could not read quota. Please open the Rate limits remaining panel, then refresh again.';
-  } finally {
-    isRefreshing.value = false;
-  }
-}
-
-function getProviderStatus(quota: ProviderQuota): string {
-  return getQuotaStatus(getPrimaryPercent(quota.limits));
+  }, 180);
 }
 </script>
 
 <template>
   <main class="popup-shell" aria-label="QuotaClock popup">
-    <header class="popup-header">
-      <div>
-        <p class="eyebrow">AI quota monitor</p>
-        <h1>QuotaClock</h1>
-        <p class="popup-subtitle">Recommended: {{ recommendedProvider }}</p>
+    <header class="command-header">
+      <div class="header-topline">
+        <div>
+          <h1>QuotaClock</h1>
+          <p>AI quota command center</p>
+        </div>
+        <button
+          class="primary-button"
+          type="button"
+          aria-label="Refresh quota dashboard"
+          :disabled="isRefreshing"
+          @click="refreshMockQuotas"
+        >
+          {{ isRefreshing ? 'Sync' : 'Refresh' }}
+        </button>
       </div>
-      <button class="primary-button" type="button" :disabled="isRefreshing" @click="refreshActiveTabQuota">
-        {{ isRefreshing ? 'Refreshing' : 'Refresh' }}
-      </button>
+      <div class="header-meta">
+        <span>Last updated: {{ lastUpdated }}</span>
+        <span>Data mode: Mock</span>
+      </div>
     </header>
 
     <p v-if="refreshError" class="inline-alert">{{ refreshError }}</p>
 
-    <section class="provider-grid" aria-label="Provider quota cards">
-      <ProviderCard
-        v-for="provider in providers"
-        :key="`${provider.providerId}-${getProviderStatus(provider)}`"
-        :quota="provider"
-      />
+    <section v-if="providers.length > 0" class="best-choice" aria-label="Best provider now">
+      <div>
+        <p class="section-label">Best now</p>
+        <h2>{{ bestProvider?.providerName ?? 'Unknown' }}</h2>
+        <p>{{ bestReason }}</p>
+      </div>
+      <span class="command-status" :data-status="bestStatus">
+        {{ formatCommandStatus(bestStatus) }}
+      </span>
     </section>
 
-    <footer class="popup-footer">
-      <span>Last updated {{ lastUpdated }}</span>
-      <a href="#" aria-label="Settings placeholder">Settings</a>
-      <a href="https://github.com/JinpengLiu-6/QuotaClock" target="_blank" rel="noreferrer">GitHub</a>
-    </footer>
+    <section v-if="providers.length > 0" class="suggestion-section" aria-label="Task suggestions">
+      <div
+        v-for="suggestion in taskSuggestions"
+        :key="suggestion.label"
+        class="suggestion-chip"
+        :data-status="suggestion.status"
+      >
+        <span>{{ suggestion.label }}</span>
+        <strong>{{ suggestion.providerName }}</strong>
+      </div>
+    </section>
+
+    <section v-if="providers.length > 0" class="provider-grid" aria-label="Provider clocks">
+      <ProviderCard v-for="provider in providers" :key="provider.providerId" :quota="provider" />
+    </section>
+
+    <section v-else class="empty-state" aria-label="No quota data">
+      <strong>No quota data yet.</strong>
+      <span>Open an AI provider page and refresh.</span>
+    </section>
+
+    <section v-if="providers.length > 0" class="attention-section" aria-label="Quota attention">
+      <strong>Attention</strong>
+      <p>{{ attentionMessage }}</p>
+    </section>
   </main>
 </template>

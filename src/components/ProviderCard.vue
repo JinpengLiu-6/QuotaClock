@@ -1,45 +1,65 @@
 <script setup lang="ts">
 import QuotaClockDial from './QuotaClockDial.vue';
-import type { ProviderQuota } from '../providers/types';
-import { formatStatus, getPrimaryPercent, getQuotaStatus } from '../utils/quotaStatus';
+import type { ProviderQuota, QuotaLimit } from '../providers/types';
+import { formatStatus, getPrimaryPercent, getWorstStatus } from '../utils/quotaStatus';
 
 const props = defineProps<{
   quota: ProviderQuota;
 }>();
 
+const status = getWorstStatus(props.quota.limits);
+
 function formatMainQuota(quota: ProviderQuota): string {
-  const percent = getPrimaryPercent(quota.limits);
-  if (typeof percent === 'number') {
-    return `${percent}%`;
+  const primaryLimit = quota.limits[0];
+
+  if (primaryLimit?.kind === 'credits' && primaryLimit.balanceText) {
+    return primaryLimit.balanceText;
   }
 
-  const balance = quota.limits.find((limit) => limit.balanceText)?.balanceText;
-  return balance ?? 'Unknown';
+  const percent = getPrimaryPercent(quota.limits);
+  return typeof percent === 'number' ? `${percent}%` : 'Unknown';
 }
 
-function getLimitValue(limit: ProviderQuota['limits'][number]): string {
+function getLimitSummary(quota: ProviderQuota): string {
+  return quota.limits.map((limit) => limit.label).join(' + ');
+}
+
+function getResetSummary(quota: ProviderQuota): string {
+  const reset = quota.limits.find((limit) => limit.resetAtText)?.resetAtText;
+  return reset ? `Next reset: ${reset}` : 'Next reset: Unknown';
+}
+
+function getLimitValue(limit: QuotaLimit): string {
+  if (limit.kind === 'credits' && limit.balanceText) {
+    return limit.balanceText;
+  }
+
   if (typeof limit.remainingPercent === 'number') {
     return `${limit.remainingPercent}%`;
   }
 
   return limit.balanceText ?? 'Unknown';
 }
-
-const status = getQuotaStatus(getPrimaryPercent(props.quota.limits));
 </script>
 
 <template>
   <article class="provider-card">
+    <div class="provider-card-top">
+      <h3>{{ quota.providerName }}</h3>
+      <div class="provider-badges">
+        <span class="status-chip" :data-status="status">{{ formatStatus(status) }}</span>
+        <span class="source-dot">● {{ quota.source }}</span>
+      </div>
+    </div>
+
     <div class="provider-summary">
-      <QuotaClockDial :quota="quota" />
+      <QuotaClockDial :quota="quota" :size="88" />
 
       <div class="provider-copy">
-        <div class="provider-title-row">
-          <h2>{{ quota.providerName }}</h2>
-          <span class="status-chip" :data-status="status">{{ formatStatus(status) }}</span>
-        </div>
         <p class="provider-main">{{ formatMainQuota(quota) }}</p>
+        <p class="provider-kind">{{ getLimitSummary(quota) }}</p>
         <p class="provider-recommendation">{{ quota.recommendation }}</p>
+        <p class="provider-reset">{{ getResetSummary(quota) }}</p>
       </div>
     </div>
 
@@ -48,7 +68,7 @@ const status = getQuotaStatus(getPrimaryPercent(props.quota.limits));
         <dt>{{ limit.label }}</dt>
         <dd>
           <span>{{ getLimitValue(limit) }}</span>
-          <span>reset {{ limit.resetAtText ?? 'Unknown' }}</span>
+          <span>{{ limit.resetAtText ?? 'Unknown' }}</span>
         </dd>
       </div>
     </dl>
