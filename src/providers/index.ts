@@ -1,8 +1,9 @@
-import { claudeMockQuota, claudeProvider } from './claudeProvider';
-import { codexProvider, createUnknownCodexQuota } from './codexProvider';
-import { deepseekMockQuota, deepseekProvider } from './deepseekProvider';
-import { qwenMockQuota, qwenProvider } from './qwenProvider';
+import { claudeProvider } from './claudeProvider';
+import { codexProvider } from './codexProvider';
+import { deepseekProvider } from './deepseekProvider';
+import { qwenProvider } from './qwenProvider';
 import type { ProviderQuota, QuotaProviderAdapter } from './types';
+import { getMockProviderQuotas } from './mockQuotas';
 
 export const quotaProviders: QuotaProviderAdapter[] = [
   codexProvider,
@@ -12,10 +13,7 @@ export const quotaProviders: QuotaProviderAdapter[] = [
 ];
 
 export function getDefaultProviderQuotas(): ProviderQuota[] {
-  return [
-    createUnknownCodexQuota(),
-    claudeMockQuota,
-    deepseekMockQuota,
-    qwenMockQuota,
-  ];
+  return getMockProviderQuotas();
 }
+
+export { getMockProviderQuotas };

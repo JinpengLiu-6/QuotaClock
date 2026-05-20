@@ -1,110 +1,67 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import ProviderCard from '../components/ProviderCard.vue';
-import { getDefaultProviderQuotas } from '../providers';
-import type { ProviderQuota, RefreshQuotaResponse } from '../providers/types';
-import { loadProviderQuotas, saveProviderQuota } from '../storage/quotaStorage';
-import { getPrimaryPercent, getQuotaStatus } from '../utils/quotaStatus';
+import { getMockProviderQuotas } from '../providers';
+import type { ProviderQuota } from '../providers/types';
+import { getRecommendedProvider } from '../utils/quotaStatus';
 
-const providers = ref<ProviderQuota[]>(getDefaultProviderQuotas());
+const providers = ref<ProviderQuota[]>(getMockProviderQuotas());
 const refreshError = ref('');
 const isRefreshing = ref(false);
 
-const recommendedProvider = computed(() => {
-  const sorted = [...providers.value].sort((left, right) => {
-    const leftPercent = getPrimaryPercent(left.limits) ?? -1;
-    const rightPercent = getPrimaryPercent(right.limits) ?? -1;
-    return rightPercent - leftPercent;
-  });
-
-  return sorted[0]?.providerName ?? 'Unknown';
-});
-
+const recommendedProvider = computed(() => getRecommendedProvider(providers.value));
 const lastUpdated = computed(() => {
   const timestamps = providers.value
     .map((provider) => Date.parse(provider.updatedAt))
     .filter((timestamp) => Number.isFinite(timestamp));
 
-  if (timestamps.length === 0) {
-    return 'Unknown';
-  }
-
-  return new Date(Math.max(...timestamps)).toLocaleString();
+  return timestamps.length > 0 ? new Date(Math.max(...timestamps)).toLocaleTimeString() : 'Unknown';
 });
 
-onMounted(loadQuotas);
-
-async function loadQuotas(): Promise<void> {
-  const stored = await loadProviderQuotas();
-  providers.value = getDefaultProviderQuotas().map((quota) => stored[quota.providerId] ?? quota);
-}
-
-async function refreshActiveTabQuota(): Promise<void> {
+function refreshMockQuotas(): void {
   refreshError.value = '';
   isRefreshing.value = true;
 
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-    if (!tab.id) {
-      throw new Error('No active tab found.');
+  window.setTimeout(() => {
+    try {
+      providers.value = getMockProviderQuotas();
+    } catch {
+      refreshError.value = 'Could not read quota. Open Rate limits panel and refresh again.';
+    } finally {
+      isRefreshing.value = false;
     }
-
-    const response = await chrome.tabs.sendMessage(tab.id, {
-      type: 'REFRESH_QUOTA',
-    }) as RefreshQuotaResponse;
-
-    if (!response.ok || !response.quota) {
-      throw new Error(
-        response.error ??
-          'Could not read quota. Please open the Rate limits remaining panel, then refresh again.',
-      );
-    }
-
-    await saveProviderQuota(response.quota);
-    providers.value = providers.value.map((provider) =>
-      provider.providerId === response.quota?.providerId ? response.quota : provider,
-    );
-  } catch (error) {
-    refreshError.value =
-      error instanceof Error
-        ? error.message
-        : 'Could not read quota. Please open the Rate limits remaining panel, then refresh again.';
-  } finally {
-    isRefreshing.value = false;
-  }
-}
-
-function getProviderStatus(quota: ProviderQuota): string {
-  return getQuotaStatus(getPrimaryPercent(quota.limits));
+  }, 180);
 }
 </script>
 
 <template>
   <main class="popup-shell" aria-label="QuotaClock popup">
     <header class="popup-header">
-      <div>
-        <p class="eyebrow">AI quota monitor</p>
+      <div class="header-title">
         <h1>QuotaClock</h1>
-        <p class="popup-subtitle">Recommended: {{ recommendedProvider }}</p>
+        <p>AI Quota Monitor</p>
       </div>
-      <button class="primary-button" type="button" :disabled="isRefreshing" @click="refreshActiveTabQuota">
-        {{ isRefreshing ? 'Refreshing' : 'Refresh' }}
+      <button class="primary-button" type="button" :disabled="isRefreshing" @click="refreshMockQuotas">
+        {{ isRefreshing ? 'Syncing' : 'Refresh' }}
       </button>
     </header>
 
-    <p v-if="refreshError" class="inline-alert">{{ refreshError }}</p>
-
-    <section class="provider-grid" aria-label="Provider quota cards">
-      <ProviderCard
-        v-for="provider in providers"
-        :key="`${provider.providerId}-${getProviderStatus(provider)}`"
-        :quota="provider"
-      />
+    <section class="recommendation-strip" aria-label="Recommended provider">
+      <span>Recommended:</span>
+      <strong>{{ recommendedProvider?.providerName ?? 'Unknown' }}</strong>
+      <small>mock data</small>
     </section>
 
+    <p v-if="refreshError" class="inline-alert">{{ refreshError }}</p>
+
+    <section v-if="providers.length > 0" class="provider-grid" aria-label="Provider quota cards">
+      <ProviderCard v-for="provider in providers" :key="provider.providerId" :quota="provider" />
+    </section>
+
+    <p v-else class="empty-state">No quota data yet.</p>
+
     <footer class="popup-footer">
-      <span>Last updated {{ lastUpdated }}</span>
+      <span>Updated {{ lastUpdated }}</span>
       <a href="#" aria-label="Settings placeholder">Settings</a>
       <a href="https://github.com/JinpengLiu-6/QuotaClock" target="_blank" rel="noreferrer">GitHub</a>
     </footer>

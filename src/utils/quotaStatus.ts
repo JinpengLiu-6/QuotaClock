@@ -1,4 +1,4 @@
-import type { ProviderStatus, QuotaLimit } from '../providers/types';
+import type { ProviderQuota, ProviderStatus, QuotaLimit } from '../providers/types';
 
 export function getQuotaStatus(remainingPercent?: number): ProviderStatus {
   if (typeof remainingPercent !== 'number' || Number.isNaN(remainingPercent)) {
@@ -68,4 +68,23 @@ export function formatStatus(status: ProviderStatus): string {
   };
 
   return labels[status];
+}
+
+export function getRecommendedProvider(quotas: ProviderQuota[]): ProviderQuota | null {
+  const preferredStatuses: ProviderStatus[] = [
+    'good',
+    'caution',
+    'critical',
+    'blocked',
+    'unknown',
+  ];
+
+  for (const status of preferredStatuses) {
+    const quota = quotas.find((provider) => getWorstStatus(provider.limits) === status);
+    if (quota) {
+      return quota;
+    }
+  }
+
+  return null;
 }

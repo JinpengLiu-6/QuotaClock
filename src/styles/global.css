@@ -1,8 +1,8 @@
 :root {
   --qc-good: #16a34a;
   --qc-caution: #d97706;
-  --qc-critical: #dc2626;
-  --qc-blocked: #7f1d1d;
+  --qc-critical: #ea580c;
+  --qc-blocked: #dc2626;
   --qc-unknown: #64748b;
   --qc-ink: #182033;
   --qc-muted: #667085;
@@ -27,7 +27,7 @@
 body {
   min-width: 360px;
   margin: 0;
-  background: var(--qc-page);
+  background: #f7f8fb;
 }
 
 button,
@@ -48,53 +48,82 @@ button:disabled {
 
 .popup-shell {
   width: 360px;
-  padding: 16px;
+  padding: 12px;
 }
 
 .popup-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 10px;
+  border: 1px solid rgb(148 163 184 / 22%);
+  border-radius: 8px;
+  padding: 10px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgb(15 23 42 / 5%);
 }
 
-.eyebrow,
-.popup-subtitle,
+.header-title,
+.header-title p,
+.recommendation-strip,
 h1,
 h2,
 p {
   margin: 0;
 }
 
-.eyebrow {
-  margin-bottom: 4px;
-  color: var(--qc-muted);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
 h1 {
-  font-size: 26px;
+  color: #0f172a;
+  font-size: 20px;
   line-height: 1.1;
 }
 
-.popup-subtitle {
-  margin-top: 6px;
+.header-title p {
+  margin-top: 2px;
   color: var(--qc-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.recommendation-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  margin: 8px 0;
+  border: 1px solid rgb(148 163 184 / 18%);
+  border-radius: 8px;
+  padding: 6px 8px;
+  color: #475569;
+  background: #ffffff;
+  font-size: 12px;
+}
+
+.recommendation-strip strong {
+  color: #0f172a;
   font-size: 13px;
+}
+
+.recommendation-strip small {
+  margin-left: auto;
+  border-radius: 999px;
+  padding: 2px 6px;
+  color: #475569;
+  background: #f1f5f9;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: lowercase;
 }
 
 .primary-button,
 .qc-secondary-button {
-  border: 1px solid #0f172a;
+  min-height: 36px;
+  border: 1px solid #1e293b;
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 6px 10px;
   color: #ffffff;
-  background: #0f172a;
-  font-size: 13px;
+  background: #1e293b;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -106,34 +135,34 @@ h1 {
 }
 
 .inline-alert {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   border: 1px solid #fed7aa;
   border-radius: 8px;
-  padding: 10px;
+  padding: 8px;
   color: #9a3412;
   background: #fff7ed;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.4;
 }
 
 .provider-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
+  gap: 8px;
 }
 
 .provider-card {
-  border: 1px solid var(--qc-line);
+  border: 1px solid rgb(148 163 184 / 24%);
   border-radius: 8px;
-  padding: 12px;
+  padding: 10px;
   background: var(--qc-surface);
-  box-shadow: 0 10px 30px rgb(16 24 40 / 7%);
+  box-shadow: 0 6px 16px rgb(16 24 40 / 5%);
 }
 
 .provider-summary {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .provider-copy {
@@ -145,42 +174,71 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
 }
 
 .provider-card h2 {
   overflow: hidden;
-  font-size: 17px;
+  color: #0f172a;
+  font-size: 15px;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .provider-main {
-  margin-top: 6px;
-  font-size: 24px;
+  margin-top: 3px;
+  color: #0f172a;
+  font-size: 22px;
   font-weight: 850;
   line-height: 1;
 }
 
+.provider-kind {
+  margin-top: 3px;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 850;
+}
+
 .provider-recommendation {
-  margin-top: 7px;
+  margin-top: 4px;
   color: var(--qc-muted);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.35;
+}
+
+.status-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
 }
 
 .status-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
+  min-height: 20px;
   border-radius: 999px;
-  padding: 4px 8px;
+  padding: 3px 7px;
   color: #ffffff;
   background: var(--qc-unknown);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   white-space: nowrap;
+}
+
+.source-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  border-radius: 999px;
+  padding: 3px 6px;
+  color: #475569;
+  background: #f1f5f9;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: lowercase;
 }
 
 .status-chip[data-status="good"] {
@@ -201,98 +259,105 @@ h1 {
 
 .limit-list {
   display: grid;
-  gap: 8px;
-  margin: 12px 0 0;
+  gap: 4px;
+  margin: 8px 0 0;
 }
 
 .limit-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(64px, 0.75fr) minmax(0, 1.4fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   border-top: 1px solid #eef2f7;
-  padding-top: 8px;
+  padding-top: 4px;
   color: #475467;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .limit-row dt {
+  margin: 0;
+  color: #334155;
   font-weight: 850;
 }
 
 .limit-row dd {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: flex-end;
-  gap: 3px;
+  justify-content: flex-end;
+  gap: 8px;
   margin: 0;
+  text-align: right;
+}
+
+.limit-row dd > span:first-child,
+.limit-row dd:not(:has(span)) {
+  color: #0f172a;
+  font-weight: 800;
 }
 
 .quota-clock-dial {
-  width: 112px;
-  height: 112px;
+  width: 92px;
+  height: 92px;
   flex: 0 0 auto;
+  overflow: visible;
 }
 
 .quota-ring-track,
 .quota-ring-progress {
   fill: none;
-  stroke-width: 8;
+  stroke-width: 7;
 }
 
 .quota-ring-track {
-  stroke: #e8edf4;
+  stroke: #e5eaf1;
 }
 
 .quota-ring-track-inner {
-  stroke-width: 6;
+  stroke-width: 5;
 }
 
 .quota-ring-progress {
+  fill: none;
   transform: rotate(-90deg);
   transform-origin: 60px 60px;
   stroke-linecap: round;
   transition: stroke-dashoffset 180ms ease;
 }
 
+.quota-ring-progress-inner {
+  stroke-width: 5;
+}
+
 .quota-ring-good {
   color: var(--qc-good);
   stroke: var(--qc-good);
-  fill: var(--qc-good);
 }
 
 .quota-ring-caution {
   color: var(--qc-caution);
   stroke: var(--qc-caution);
-  fill: var(--qc-caution);
 }
 
 .quota-ring-critical {
   color: var(--qc-critical);
   stroke: var(--qc-critical);
-  fill: var(--qc-critical);
 }
 
 .quota-ring-blocked {
   color: var(--qc-blocked);
   stroke: var(--qc-blocked);
-  fill: var(--qc-blocked);
 }
 
 .quota-ring-unknown {
   color: var(--qc-unknown);
   stroke: var(--qc-unknown);
-  fill: var(--qc-unknown);
-}
-
-.quota-dial-name {
-  fill: var(--qc-muted);
-  font-size: 11px;
-  font-weight: 800;
 }
 
 .quota-dial-value {
-  font-size: 17px;
+  fill: #0f172a;
+  stroke: none;
+  font-size: 18px;
   font-weight: 900;
 }
 
@@ -300,16 +365,26 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  margin-top: 14px;
+  gap: 8px;
+  margin-top: 10px;
   color: var(--qc-muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .popup-footer a {
   color: #334155;
   font-weight: 800;
   text-decoration: none;
+}
+
+.empty-state {
+  border: 1px dashed rgb(148 163 184 / 42%);
+  border-radius: 8px;
+  padding: 18px;
+  color: var(--qc-muted);
+  background: #ffffff;
+  font-size: 13px;
+  text-align: center;
 }
 
 .qc-hud {
