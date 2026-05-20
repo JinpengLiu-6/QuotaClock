@@ -54,7 +54,7 @@ function getLimitValue(limit: QuotaLimit): string {
     </div>
 
     <div class="provider-summary">
-      <QuotaClockDial :quota="quota" :size="88" />
+      <QuotaClockDial :quota="quota" :size="112" />
 
       <div class="provider-copy">
         <p class="provider-main">{{ formatMainQuota(quota) }}</p>

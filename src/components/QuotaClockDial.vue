@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { ProviderQuota, QuotaLimit, ProviderStatus } from '../providers/types';
+import {
+  clockTicks,
+  describeArc,
+  energyParticles,
+  getResetHandAngle,
+  polarToCartesian,
+} from '../utils/dialGeometry';
 import { getPrimaryPercent, getQuotaStatus } from '../utils/quotaStatus';
 
 const props = defineProps<{
@@ -12,7 +19,8 @@ const radiusOuter = 43;
 const radiusInner = 32;
 const circumferenceOuter = 2 * Math.PI * radiusOuter;
 const circumferenceInner = 2 * Math.PI * radiusInner;
-const tickAngles = Array.from({ length: 12 }, (_, index) => index * 30);
+const warmArc = describeArc(60, 60, 47, 28, 70);
+const ghostArc = describeArc(60, 60, 49, 218, 318);
 
 const primaryLimit = computed(() => props.quota.limits[0]);
 const secondaryLimit = computed(() => props.quota.limits[1]);
@@ -28,13 +36,7 @@ const centerValue = computed(() => {
   return typeof primaryPercent.value === 'number' ? `${primaryPercent.value}%` : 'Unknown';
 });
 const centerStatus = computed(() => getQuotaStatus(primaryPercent.value));
-const radarAngle = computed(() => {
-  if (typeof primaryPercent.value !== 'number') {
-    return 310;
-  }
-
-  return Math.round((primaryPercent.value / 100) * 360) - 90;
-});
+const resetHandAngle = computed(() => getResetHandAngle(primaryLimit.value?.resetAtText));
 
 function getStrokeOffset(limit: QuotaLimit | undefined, circumference: number): number {
   const percent = limit?.remainingPercent;
@@ -50,6 +52,18 @@ function getStrokeOffset(limit: QuotaLimit | undefined, circumference: number): 
 function getStatusClass(status: ProviderStatus | undefined): string {
   return `quota-ring-${status ?? 'unknown'}`;
 }
+
+function getParticlePoint(angle: number, radius: number) {
+  return polarToCartesian(60, 60, radius, angle);
+}
+
+function getTickStart(angle: number, radius: number) {
+  return polarToCartesian(60, 60, radius, angle);
+}
+
+function getTickEnd(angle: number, radius: number) {
+  return polarToCartesian(60, 60, radius, angle);
+}
 </script>
 
 <template>
@@ -62,7 +76,7 @@ function getStatusClass(status: ProviderStatus | undefined): string {
     :aria-label="`${quota.providerName} quota ${centerValue}`"
   >
     <defs>
-      <filter id="quota-ring-glow" x="-35%" y="-35%" width="170%" height="170%">
+      <filter id="quota-ring-glow" x="-45%" y="-45%" width="190%" height="190%">
         <feGaussianBlur stdDeviation="2.4" result="blur" />
         <feMerge>
           <feMergeNode in="blur" />
@@ -70,20 +84,42 @@ function getStatusClass(status: ProviderStatus | undefined): string {
         </feMerge>
       </filter>
       <radialGradient id="quota-core-gradient" cx="50%" cy="50%" r="50%">
-        <stop offset="0%" stop-color="rgba(229, 240, 255, 0.22)" />
-        <stop offset="100%" stop-color="rgba(56, 189, 248, 0.02)" />
+        <stop offset="0%" stop-color="rgba(34, 211, 238, 0.24)" />
+        <stop offset="46%" stop-color="rgba(15, 23, 42, 0.92)" />
+        <stop offset="100%" stop-color="rgba(2, 6, 23, 0.96)" />
       </radialGradient>
+      <linearGradient id="quota-hand-gradient" x1="60" y1="60" x2="60" y2="20">
+        <stop offset="0%" stop-color="rgba(250, 204, 21, 0)" />
+        <stop offset="62%" stop-color="#facc15" />
+        <stop offset="100%" stop-color="#f97316" />
+      </linearGradient>
     </defs>
+
+    <circle class="quota-energy-halo" cx="60" cy="60" r="51" />
+    <path class="quota-ghost-arc" :d="ghostArc" />
+    <path class="quota-warm-arc" :d="warmArc" />
+
+    <g class="quota-particles" aria-hidden="true">
+      <circle
+        v-for="particle in energyParticles"
+        :key="`${particle.angle}-${particle.radius}`"
+        :class="`quota-particle quota-particle-${particle.color}`"
+        :cx="getParticlePoint(particle.angle, particle.radius).x"
+        :cy="getParticlePoint(particle.angle, particle.radius).y"
+        :r="particle.size"
+        :style="{ '--particle-opacity': particle.opacity, '--particle-delay': `${particle.delay}s` }"
+      />
+    </g>
 
     <g class="quota-ticks" aria-hidden="true">
       <line
-        v-for="angle in tickAngles"
-        :key="angle"
-        x1="60"
-        y1="12"
-        x2="60"
-        y2="16"
-        :transform="`rotate(${angle} 60 60)`"
+        v-for="tick in clockTicks"
+        :key="tick.angle"
+        :class="{ 'quota-tick-major': tick.major }"
+        :x1="getTickStart(tick.angle, tick.innerRadius).x"
+        :y1="getTickStart(tick.angle, tick.innerRadius).y"
+        :x2="getTickEnd(tick.angle, tick.outerRadius).x"
+        :y2="getTickEnd(tick.angle, tick.outerRadius).y"
       />
     </g>
 
@@ -95,6 +131,12 @@ function getStatusClass(status: ProviderStatus | undefined): string {
       :r="radiusOuter"
       :stroke-dasharray="circumferenceOuter"
       :stroke-dashoffset="getStrokeOffset(primaryLimit, circumferenceOuter)"
+    />
+    <circle
+      :class="['quota-ring-fragments', getStatusClass(primaryLimit?.status)]"
+      cx="60"
+      cy="60"
+      :r="radiusOuter + 4"
     />
 
     <circle
@@ -116,12 +158,12 @@ function getStatusClass(status: ProviderStatus | undefined): string {
 
     <circle class="quota-core" cx="60" cy="60" r="23" />
     <line
-      :class="['quota-radar-hand', getStatusClass(centerStatus)]"
+      class="quota-radar-hand"
       x1="60"
       y1="60"
       x2="60"
       y2="26"
-      :transform="`rotate(${radarAngle} 60 60)`"
+      :transform="`rotate(${resetHandAngle} 60 60)`"
     />
     <circle :class="['quota-core-dot', getStatusClass(centerStatus)]" cx="60" cy="60" r="3.5" />
 

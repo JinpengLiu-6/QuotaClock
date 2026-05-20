@@ -10,6 +10,11 @@
   --qc-text-muted: #94a3b8;
   --qc-text-dim: #64748b;
   --qc-good: #38bdf8;
+  --qc-energy-cyan: #22d3ee;
+  --qc-energy-blue: #38bdf8;
+  --qc-energy-orange: #f97316;
+  --qc-energy-yellow: #facc15;
+  --qc-energy-violet: #8b5cf6;
   --qc-good-soft: rgba(56, 189, 248, 0.14);
   --qc-good-glow: rgba(56, 189, 248, 0.35);
   --qc-caution: #fbbf24;
@@ -428,7 +433,7 @@ p {
 .provider-summary {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .provider-copy {
@@ -503,21 +508,90 @@ p {
 }
 
 .quota-clock-dial {
-  width: 88px;
-  height: 88px;
+  width: 112px;
+  height: 112px;
   flex: 0 0 auto;
   overflow: visible;
-  filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.1));
+  filter:
+    drop-shadow(0 0 12px rgba(34, 211, 238, 0.14))
+    drop-shadow(0 0 18px rgba(249, 115, 22, 0.06));
+  transition:
+    filter 180ms ease,
+    transform 180ms ease;
+}
+
+.provider-card:hover .quota-clock-dial {
+  filter:
+    drop-shadow(0 0 16px rgba(34, 211, 238, 0.24))
+    drop-shadow(0 0 24px rgba(249, 115, 22, 0.1));
+  transform: scale(1.015);
+}
+
+.quota-energy-halo {
+  fill: rgba(2, 6, 23, 0.36);
+  stroke: rgba(34, 211, 238, 0.12);
+  stroke-dasharray: 1 9;
+  stroke-linecap: round;
+  stroke-width: 1.2;
+}
+
+.quota-ghost-arc,
+.quota-warm-arc {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.quota-ghost-arc {
+  filter: url("#quota-ring-glow");
+  stroke: rgba(139, 92, 246, 0.34);
+  stroke-dasharray: 10 8 2 10;
+  stroke-width: 2.1;
+}
+
+.quota-warm-arc {
+  filter: url("#quota-ring-glow");
+  stroke: var(--qc-energy-orange);
+  stroke-dasharray: 18 6 2 7;
+  stroke-width: 2.4;
+  opacity: 0.86;
+}
+
+.quota-particle {
+  opacity: var(--particle-opacity);
+  animation: qc-particle-twinkle 2.8s ease-in-out infinite;
+  animation-delay: var(--particle-delay);
+}
+
+.quota-particle-cyan {
+  fill: var(--qc-energy-cyan);
+}
+
+.quota-particle-orange {
+  fill: var(--qc-energy-orange);
+}
+
+.quota-particle-violet {
+  fill: var(--qc-energy-violet);
+}
+
+.quota-particle-slate {
+  fill: var(--qc-unknown);
 }
 
 .quota-ticks line {
-  stroke: rgba(148, 163, 184, 0.54);
+  stroke: rgba(34, 211, 238, 0.36);
   stroke-linecap: round;
-  stroke-width: 1.6;
+  stroke-width: 1.3;
+}
+
+.quota-ticks .quota-tick-major {
+  stroke: rgba(250, 204, 21, 0.62);
+  stroke-width: 2;
 }
 
 .quota-ring-track,
-.quota-ring-progress {
+.quota-ring-progress,
+.quota-ring-fragments {
   fill: none;
   stroke-width: 7;
 }
@@ -540,7 +614,18 @@ p {
 }
 
 .quota-ring-progress-inner {
+  opacity: 0.72;
   stroke-width: 5;
+}
+
+.quota-ring-fragments {
+  filter: url("#quota-ring-glow");
+  opacity: 0.52;
+  stroke-dasharray: 2 13 16 9 3 20;
+  stroke-linecap: round;
+  stroke-width: 2.3;
+  transform: rotate(-72deg);
+  transform-origin: 60px 60px;
 }
 
 .quota-ring-good {
@@ -567,16 +652,20 @@ p {
   color: var(--qc-unknown);
   stroke: var(--qc-unknown);
   stroke-dasharray: 2 8;
+  filter: none;
+  opacity: 0.7;
 }
 
 .quota-core {
   fill: url("#quota-core-gradient");
-  stroke: rgba(148, 163, 184, 0.18);
+  stroke: rgba(34, 211, 238, 0.18);
   stroke-width: 1;
 }
 
 .quota-radar-hand {
-  stroke-width: 1.7;
+  filter: url("#quota-ring-glow");
+  stroke: url("#quota-hand-gradient");
+  stroke-width: 2;
   stroke-linecap: round;
   opacity: 0.78;
   transition: transform 260ms ease;
@@ -586,13 +675,23 @@ p {
   fill: currentColor;
   stroke: rgba(2, 6, 23, 0.72);
   stroke-width: 1.2;
+  filter: url("#quota-ring-glow");
 }
 
 .quota-dial-value {
   fill: var(--qc-text);
   stroke: none;
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 950;
+  paint-order: stroke;
+  stroke: rgba(2, 6, 23, 0.45);
+  stroke-width: 0.8px;
+}
+
+.provider-card:has(.quota-ring-caution) .quota-clock-dial,
+.provider-card:has(.quota-ring-critical) .quota-clock-dial,
+.provider-card:has(.quota-ring-blocked) .quota-clock-dial {
+  animation: qc-energy-breathe 2.4s ease-in-out infinite;
 }
 
 .attention-section {
@@ -688,6 +787,34 @@ p {
 
   to {
     opacity: 1;
+  }
+}
+
+@keyframes qc-particle-twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.82);
+  }
+
+  50% {
+    opacity: var(--particle-opacity);
+    transform: scale(1.16);
+  }
+}
+
+@keyframes qc-energy-breathe {
+  0%,
+  100% {
+    filter:
+      drop-shadow(0 0 10px rgba(251, 191, 36, 0.08))
+      drop-shadow(0 0 16px rgba(251, 113, 133, 0.06));
+  }
+
+  50% {
+    filter:
+      drop-shadow(0 0 16px rgba(251, 191, 36, 0.16))
+      drop-shadow(0 0 24px rgba(251, 113, 133, 0.12));
   }
 }
 
