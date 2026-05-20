@@ -1,14 +1,14 @@
 # Contributing
 
-Thanks for your interest in QuotaClock.
+Thanks for helping improve QuotaClock.
 
-## Install dependencies
+## Install Dependencies
 
 ```bash
 npm install
 ```
 
-## Run the project
+## Run The Project
 
 ```bash
 npm run dev
@@ -22,17 +22,28 @@ npm run build
 
 Then load the `dist` directory from `chrome://extensions` with Developer mode enabled.
 
-## Submit a PR
+## Test Changes
+
+Before opening a PR, run:
+
+```bash
+npm run typecheck
+npm run test
+npm run build
+```
+
+## Submit A PR
 
 1. Create a focused branch from `main`.
-2. Make a small, reviewable change.
-3. Run `npm run typecheck` and `npm run build`.
-4. Open a pull request with a clear description of the change and any testing notes.
+2. Keep the change small and reviewable.
+3. Explain the user-facing behavior and testing notes in the PR description.
+4. Avoid analytics, remote logging, or backend calls unless the project explicitly accepts that direction later.
 
-## Add a provider adapter
+## Add A Provider Adapter
 
-1. Add a provider file in `src/providers`.
-2. Implement the `QuotaProviderAdapter` interface from `src/providers/types.ts`.
-3. Keep provider logic isolated from UI components.
-4. Use local browser storage only unless the project explicitly adds a reviewed integration.
-5. Add mock data first, then real detection logic in a separate PR when possible.
+1. Add or update a provider file in `src/providers`.
+2. Implement the shared types from `src/providers/types.ts`.
+3. Keep provider logic out of Vue components.
+4. Store quota state in `chrome.storage.local`.
+5. Add parser or adapter tests for fragile extraction logic.
+6. Prefer mock data first, then real detection in a separate focused PR.

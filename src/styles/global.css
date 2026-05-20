@@ -1,6 +1,16 @@
 :root {
-  color: #172033;
-  background: #f6f7fb;
+  --qc-good: #16a34a;
+  --qc-caution: #d97706;
+  --qc-critical: #dc2626;
+  --qc-blocked: #7f1d1d;
+  --qc-unknown: #64748b;
+  --qc-ink: #182033;
+  --qc-muted: #667085;
+  --qc-line: #e2e8f0;
+  --qc-surface: #ffffff;
+  --qc-page: #f6f7fb;
+  color: var(--qc-ink);
+  background: var(--qc-page);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -17,7 +27,7 @@
 body {
   min-width: 360px;
   margin: 0;
-  background: #f6f7fb;
+  background: var(--qc-page);
 }
 
 button,
@@ -27,51 +37,83 @@ select {
   font: inherit;
 }
 
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
 .popup-shell {
-  width: 390px;
-  padding: 18px;
+  width: 360px;
+  padding: 16px;
 }
 
 .popup-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
+  gap: 12px;
+  margin-bottom: 14px;
 }
 
-.eyebrow {
-  margin: 0 0 4px;
-  color: #667085;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
+.eyebrow,
+.popup-subtitle,
 h1,
 h2,
 p {
   margin: 0;
 }
 
+.eyebrow {
+  margin-bottom: 4px;
+  color: var(--qc-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
 h1 {
-  font-size: 28px;
+  font-size: 26px;
   line-height: 1.1;
 }
 
-.status-pill,
-.provider-tone {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  border-radius: 999px;
-  padding: 4px 9px;
-  color: #475467;
-  background: #eceff5;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
+.popup-subtitle {
+  margin-top: 6px;
+  color: var(--qc-muted);
+  font-size: 13px;
+}
+
+.primary-button,
+.qc-secondary-button {
+  border: 1px solid #0f172a;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #ffffff;
+  background: #0f172a;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.qc-secondary-button {
+  width: 100%;
+  margin-top: 10px;
+  border-color: #263244;
+  background: #263244;
+}
+
+.inline-alert {
+  margin-bottom: 12px;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  padding: 10px;
+  color: #9a3412;
+  background: #fff7ed;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .provider-grid {
@@ -81,91 +123,258 @@ h1 {
 }
 
 .provider-card {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto auto;
-  gap: 14px;
-  min-height: 148px;
-  border: 1px solid #e1e5ee;
+  border: 1px solid var(--qc-line);
   border-radius: 8px;
-  padding: 14px;
-  background: #ffffff;
-  box-shadow: 0 10px 30px rgb(16 24 40 / 8%);
+  padding: 12px;
+  background: var(--qc-surface);
+  box-shadow: 0 10px 30px rgb(16 24 40 / 7%);
 }
 
-.provider-card-header {
+.provider-summary {
   display: flex;
-  grid-column: 1 / -1;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
   gap: 12px;
 }
 
-.provider-card h2 {
-  margin-bottom: 4px;
-  font-size: 17px;
-  line-height: 1.2;
+.provider-copy {
+  min-width: 0;
+  flex: 1;
 }
 
-.provider-card p {
-  color: #667085;
+.provider-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.provider-card h2 {
+  overflow: hidden;
+  font-size: 17px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.provider-main {
+  margin-top: 6px;
+  font-size: 24px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.provider-recommendation {
+  margin-top: 7px;
+  color: var(--qc-muted);
   font-size: 13px;
   line-height: 1.35;
 }
 
-.provider-tone[data-tone="healthy"] {
-  color: #05603a;
-  background: #d1fadf;
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: #ffffff;
+  background: var(--qc-unknown);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
-.provider-tone[data-tone="watch"] {
-  color: #93370d;
-  background: #fef0c7;
+.status-chip[data-status="good"] {
+  background: var(--qc-good);
 }
 
-.provider-tone[data-tone="low"] {
-  color: #912018;
-  background: #fee4e2;
+.status-chip[data-status="caution"] {
+  background: var(--qc-caution);
+}
+
+.status-chip[data-status="critical"] {
+  background: var(--qc-critical);
+}
+
+.status-chip[data-status="blocked"] {
+  background: var(--qc-blocked);
+}
+
+.limit-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+
+.limit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid #eef2f7;
+  padding-top: 8px;
+  color: #475467;
+  font-size: 12px;
+}
+
+.limit-row dt {
+  font-weight: 850;
+}
+
+.limit-row dd {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  margin: 0;
 }
 
 .quota-clock-dial {
-  display: grid;
-  place-items: center;
-  width: 76px;
-  height: 76px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1px rgb(16 24 40 / 8%);
+  width: 112px;
+  height: 112px;
+  flex: 0 0 auto;
 }
 
-.quota-clock-face {
-  display: grid;
-  place-items: center;
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
-  background: #ffffff;
+.quota-ring-track,
+.quota-ring-progress {
+  fill: none;
+  stroke-width: 8;
 }
 
-.quota-clock-value {
-  color: #172033;
-  font-size: 17px;
-  font-weight: 800;
-  line-height: 1;
+.quota-ring-track {
+  stroke: #e8edf4;
 }
 
-.quota-clock-caption {
-  color: #667085;
+.quota-ring-track-inner {
+  stroke-width: 6;
+}
+
+.quota-ring-progress {
+  transform: rotate(-90deg);
+  transform-origin: 60px 60px;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 180ms ease;
+}
+
+.quota-ring-good {
+  color: var(--qc-good);
+  stroke: var(--qc-good);
+  fill: var(--qc-good);
+}
+
+.quota-ring-caution {
+  color: var(--qc-caution);
+  stroke: var(--qc-caution);
+  fill: var(--qc-caution);
+}
+
+.quota-ring-critical {
+  color: var(--qc-critical);
+  stroke: var(--qc-critical);
+  fill: var(--qc-critical);
+}
+
+.quota-ring-blocked {
+  color: var(--qc-blocked);
+  stroke: var(--qc-blocked);
+  fill: var(--qc-blocked);
+}
+
+.quota-ring-unknown {
+  color: var(--qc-unknown);
+  stroke: var(--qc-unknown);
+  fill: var(--qc-unknown);
+}
+
+.quota-dial-name {
+  fill: var(--qc-muted);
   font-size: 11px;
-  font-weight: 700;
-  line-height: 1;
+  font-weight: 800;
 }
 
-.provider-meta {
+.quota-dial-value {
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.popup-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+  color: var(--qc-muted);
+  font-size: 12px;
+}
+
+.popup-footer a {
+  color: #334155;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.qc-hud {
+  position: fixed;
+  z-index: 2147483647;
+  width: 184px;
+  color: #e5edf8;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+.qc-hud-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 184px;
+  border: 1px solid rgb(148 163 184 / 32%);
+  border-radius: 999px;
+  padding: 8px 11px;
+  color: #e5edf8;
+  background: rgb(15 23 42 / 92%);
+  box-shadow: 0 12px 30px rgb(15 23 42 / 20%);
+  font-size: 12px;
+  font-weight: 850;
+  user-select: none;
+}
+
+.qc-hud-bar strong {
+  color: #86efac;
+  font-size: 13px;
+}
+
+.qc-hud-panel {
+  margin-top: 8px;
+  border: 1px solid rgb(148 163 184 / 32%);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgb(15 23 42 / 94%);
+  box-shadow: 0 18px 50px rgb(15 23 42 / 28%);
+}
+
+.qc-hud-panel h2 {
+  margin-bottom: 8px;
+  color: #ffffff;
+  font-size: 15px;
+}
+
+.qc-hud-limit {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 6px;
-  color: #475467;
-  font-size: 13px;
-  font-weight: 700;
+  gap: 2px;
+  border-top: 1px solid rgb(148 163 184 / 20%);
+  padding: 7px 0;
+  color: #dbeafe;
+  font-size: 12px;
+}
+
+.qc-hud-panel p {
+  margin-top: 8px;
+  color: #cbd5e1;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.qc-hud-note {
+  color: #fde68a;
 }

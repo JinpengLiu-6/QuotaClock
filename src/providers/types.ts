@@ -1,19 +1,51 @@
-export type ProviderId = 'codex' | 'claude' | 'deepseek' | 'qwen';
+export type ProviderStatus = 'good' | 'caution' | 'critical' | 'blocked' | 'unknown';
 
-export interface QuotaSnapshot {
-  id: ProviderId;
-  name: string;
-  usedPercent: number;
-  remainingPercent: number;
-  remainingLabel: string;
-  resetLabel: string;
-  suggestion: string;
-  accentColor: string;
+export type QuotaKind = 'percentage' | 'credits' | 'tokens' | 'rate' | 'status';
+
+export type QuotaSource = 'dom' | 'api' | 'manual' | 'mock';
+
+export interface QuotaLimit {
+  id: string;
+  label: string;
+  kind: QuotaKind;
+  remainingPercent?: number;
+  balanceText?: string;
+  resetAtText?: string;
+  status: ProviderStatus;
+}
+
+export interface ProviderQuota {
+  providerId: string;
+  providerName: string;
+  limits: QuotaLimit[];
+  recommendation: string;
   updatedAt: string;
+  source: QuotaSource;
 }
 
 export interface QuotaProviderAdapter {
-  id: ProviderId;
+  id: string;
   name: string;
-  getQuotaSnapshot(): Promise<QuotaSnapshot>;
+  getQuota(): Promise<ProviderQuota>;
+}
+
+export interface ParsedCodexQuota {
+  providerId: 'codex';
+  limits: Array<{
+    type: '5h' | 'weekly';
+    remainingPercent: number;
+    resetAtText: string;
+  }>;
+  updatedAt: string;
+}
+
+export interface RefreshQuotaResponse {
+  ok: boolean;
+  quota?: ProviderQuota;
+  error?: string;
+}
+
+export interface HudPosition {
+  x: number;
+  y: number;
 }

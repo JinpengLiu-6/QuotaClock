@@ -1,34 +1,56 @@
 <script setup lang="ts">
 import QuotaClockDial from './QuotaClockDial.vue';
-import type { QuotaSnapshot } from '../providers/types';
-import { getQuotaTone } from '../utils/quotaStatus';
+import type { ProviderQuota } from '../providers/types';
+import { formatStatus, getPrimaryPercent, getQuotaStatus } from '../utils/quotaStatus';
 
 const props = defineProps<{
-  provider: QuotaSnapshot;
+  quota: ProviderQuota;
 }>();
 
-const quotaTone = getQuotaTone(props.provider.remainingPercent);
+function formatMainQuota(quota: ProviderQuota): string {
+  const percent = getPrimaryPercent(quota.limits);
+  if (typeof percent === 'number') {
+    return `${percent}%`;
+  }
+
+  const balance = quota.limits.find((limit) => limit.balanceText)?.balanceText;
+  return balance ?? 'Unknown';
+}
+
+function getLimitValue(limit: ProviderQuota['limits'][number]): string {
+  if (typeof limit.remainingPercent === 'number') {
+    return `${limit.remainingPercent}%`;
+  }
+
+  return limit.balanceText ?? 'Unknown';
+}
+
+const status = getQuotaStatus(getPrimaryPercent(props.quota.limits));
 </script>
 
 <template>
   <article class="provider-card">
-    <div class="provider-card-header">
-      <div>
-        <h2>{{ provider.name }}</h2>
-        <p>{{ provider.suggestion }}</p>
+    <div class="provider-summary">
+      <QuotaClockDial :quota="quota" />
+
+      <div class="provider-copy">
+        <div class="provider-title-row">
+          <h2>{{ quota.providerName }}</h2>
+          <span class="status-chip" :data-status="status">{{ formatStatus(status) }}</span>
+        </div>
+        <p class="provider-main">{{ formatMainQuota(quota) }}</p>
+        <p class="provider-recommendation">{{ quota.recommendation }}</p>
       </div>
-      <span class="provider-tone" :data-tone="quotaTone">{{ quotaTone }}</span>
     </div>
 
-    <QuotaClockDial
-      :used-percent="provider.usedPercent"
-      :accent-color="provider.accentColor"
-      :label="provider.name"
-    />
-
-    <footer class="provider-meta">
-      <span>{{ provider.remainingLabel }}</span>
-      <span>Resets {{ provider.resetLabel }}</span>
-    </footer>
+    <dl class="limit-list">
+      <div v-for="limit in quota.limits" :key="limit.id" class="limit-row">
+        <dt>{{ limit.label }}</dt>
+        <dd>
+          <span>{{ getLimitValue(limit) }}</span>
+          <span>reset {{ limit.resetAtText ?? 'Unknown' }}</span>
+        </dd>
+      </div>
+    </dl>
   </article>
 </template>

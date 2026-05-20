@@ -1,21 +1,27 @@
-import type { QuotaProviderAdapter, QuotaSnapshot } from './types';
+import type { ProviderQuota, QuotaProviderAdapter } from './types';
 
-const snapshot: QuotaSnapshot = {
-  id: 'deepseek',
-  name: 'DeepSeek',
-  usedPercent: 21,
-  remainingPercent: 79,
-  remainingLabel: '79% remaining',
-  resetLabel: 'tomorrow',
-  suggestion: 'Plenty left for research',
-  accentColor: '#059669',
+export const deepseekMockQuota: ProviderQuota = {
+  providerId: 'deepseek',
+  providerName: 'DeepSeek',
+  limits: [
+    {
+      id: 'deepseek-credits',
+      label: 'Credits',
+      kind: 'credits',
+      balanceText: '¥32.8',
+      resetAtText: 'Unknown',
+      status: 'good',
+    },
+  ],
+  recommendation: 'Large task OK',
   updatedAt: new Date().toISOString(),
+  source: 'mock',
 };
 
 export const deepseekProvider: QuotaProviderAdapter = {
   id: 'deepseek',
   name: 'DeepSeek',
-  async getQuotaSnapshot() {
-    return snapshot;
+  async getQuota() {
+    return deepseekMockQuota;
   },
 };

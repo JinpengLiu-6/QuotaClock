@@ -1,13 +1,71 @@
-export type QuotaTone = 'healthy' | 'watch' | 'low';
+import type { ProviderStatus, QuotaLimit } from '../providers/types';
 
-export function getQuotaTone(remainingPercent: number): QuotaTone {
-  if (remainingPercent >= 50) {
-    return 'healthy';
+export function getQuotaStatus(remainingPercent?: number): ProviderStatus {
+  if (typeof remainingPercent !== 'number' || Number.isNaN(remainingPercent)) {
+    return 'unknown';
   }
 
-  if (remainingPercent >= 25) {
-    return 'watch';
+  if (remainingPercent >= 70) {
+    return 'good';
   }
 
-  return 'low';
+  if (remainingPercent >= 40) {
+    return 'caution';
+  }
+
+  if (remainingPercent >= 15) {
+    return 'critical';
+  }
+
+  return 'blocked';
+}
+
+export function getRecommendation(status: ProviderStatus): string {
+  const recommendations: Record<ProviderStatus, string> = {
+    good: 'Large task OK',
+    caution: 'Medium tasks recommended',
+    critical: 'Small tasks only',
+    blocked: 'Wait reset or switch model',
+    unknown: 'Open provider page to refresh quota',
+  };
+
+  return recommendations[status];
+}
+
+export function getWorstStatus(limits: QuotaLimit[]): ProviderStatus {
+  const rank: Record<ProviderStatus, number> = {
+    blocked: 0,
+    critical: 1,
+    caution: 2,
+    good: 3,
+    unknown: 4,
+  };
+
+  return limits.reduce<ProviderStatus>((worst, limit) => {
+    return rank[limit.status] < rank[worst] ? limit.status : worst;
+  }, 'unknown');
+}
+
+export function getPrimaryPercent(limits: QuotaLimit[]): number | undefined {
+  const percentages = limits
+    .map((limit) => limit.remainingPercent)
+    .filter((value): value is number => typeof value === 'number');
+
+  if (percentages.length === 0) {
+    return undefined;
+  }
+
+  return Math.min(...percentages);
+}
+
+export function formatStatus(status: ProviderStatus): string {
+  const labels: Record<ProviderStatus, string> = {
+    good: 'Good',
+    caution: 'Caution',
+    critical: 'Critical',
+    blocked: 'Blocked',
+    unknown: 'Unknown',
+  };
+
+  return labels[status];
 }

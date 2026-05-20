@@ -1,21 +1,27 @@
-import type { QuotaProviderAdapter, QuotaSnapshot } from './types';
+import type { ProviderQuota, QuotaProviderAdapter } from './types';
 
-const snapshot: QuotaSnapshot = {
-  id: 'claude',
-  name: 'Claude',
-  usedPercent: 58,
-  remainingPercent: 42,
-  remainingLabel: '42% remaining',
-  resetLabel: 'tonight',
-  suggestion: 'Save for longer reads',
-  accentColor: '#d97706',
+export const claudeMockQuota: ProviderQuota = {
+  providerId: 'claude',
+  providerName: 'Claude',
+  limits: [
+    {
+      id: 'claude-weekly',
+      label: 'Weekly',
+      kind: 'percentage',
+      remainingPercent: 72,
+      resetAtText: 'May 27',
+      status: 'good',
+    },
+  ],
+  recommendation: 'Large task OK',
   updatedAt: new Date().toISOString(),
+  source: 'mock',
 };
 
 export const claudeProvider: QuotaProviderAdapter = {
   id: 'claude',
   name: 'Claude',
-  async getQuotaSnapshot() {
-    return snapshot;
+  async getQuota() {
+    return claudeMockQuota;
   },
 };
