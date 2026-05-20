@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import QuotaClockDial from './QuotaClockDial.vue';
 import type { ProviderQuota, QuotaLimit } from '../providers/types';
-import { formatStatus, getPrimaryPercent, getWorstStatus } from '../utils/quotaStatus';
+import { formatCommandStatus } from '../utils/recommendation';
+import { getPrimaryPercent, getWorstStatus } from '../utils/quotaStatus';
 
 const props = defineProps<{
   quota: ProviderQuota;
@@ -47,7 +48,7 @@ function getLimitValue(limit: QuotaLimit): string {
     <div class="provider-card-top">
       <h3>{{ quota.providerName }}</h3>
       <div class="provider-badges">
-        <span class="status-chip" :data-status="status">{{ formatStatus(status) }}</span>
+        <span class="status-chip" :data-status="status">{{ formatCommandStatus(status) }}</span>
         <span class="source-dot">● {{ quota.source }}</span>
       </div>
     </div>

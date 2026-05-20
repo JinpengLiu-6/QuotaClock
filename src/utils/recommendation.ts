@@ -70,19 +70,19 @@ export function getBestProviderReason(provider: ProviderQuota): string {
 export function getTaskSuggestions(quotas: ProviderQuota[]): TaskSuggestion[] {
   return [
     {
-      label: 'Large task',
+      label: 'Code',
       ...pickProvider(quotas, ['codex', 'claude'], ['good']),
     },
     {
-      label: 'Batch task',
+      label: 'Batch',
       ...pickProvider(quotas, ['deepseek'], ['good', 'caution', 'critical']),
     },
     {
-      label: 'Low-cost task',
+      label: 'Low-cost',
       ...pickProvider(quotas, ['deepseek'], ['good', 'caution', 'critical']),
     },
     {
-      label: 'Careful',
+      label: 'Watch',
       ...pickCarefulProvider(quotas),
     },
   ];
@@ -94,30 +94,26 @@ export function getAttentionMessage(quotas: ProviderQuota[]): string {
   );
 
   if (!attentionProvider) {
-    return 'All connected providers look healthy.';
+    return 'All monitored models are ready.';
   }
 
   const status = getWorstStatus(attentionProvider.limits);
   const percent = getPrimaryPercent(attentionProvider.limits);
   const quotaText = typeof percent === 'number' ? ` at ${percent}%` : '';
 
-  return `${attentionProvider.providerName} is in ${status} state${quotaText}. Prefer medium tasks or switch provider.`;
+  return `${attentionProvider.providerName} capacity is in ${status} state${quotaText}. Prefer medium tasks or switch model.`;
 }
 
 export function formatCommandStatus(status: ProviderStatus): string {
-  if (status === 'good') {
-    return 'Healthy';
-  }
+  const labels: Record<ProviderStatus, string> = {
+    good: 'READY',
+    caution: 'CAUTION',
+    critical: 'LIMITED',
+    blocked: 'BLOCKED',
+    unknown: 'UNKNOWN',
+  };
 
-  if (status === 'critical' || status === 'blocked') {
-    return 'Limited';
-  }
-
-  if (status === 'unknown') {
-    return 'Unknown';
-  }
-
-  return 'Caution';
+  return labels[status];
 }
 
 function pickProvider(

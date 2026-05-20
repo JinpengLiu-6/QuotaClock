@@ -53,21 +53,21 @@ function refreshMockQuotas(): void {
       <div class="header-topline">
         <div>
           <h1>QuotaClock</h1>
-          <p>AI quota command center</p>
+          <p>AI Model Control Center</p>
         </div>
         <button
           class="primary-button"
           type="button"
-          aria-label="Refresh quota dashboard"
+          aria-label="Scan quota dashboard"
           :disabled="isRefreshing"
           @click="refreshMockQuotas"
         >
-          {{ isRefreshing ? 'Sync' : 'Refresh' }}
+          {{ isRefreshing ? 'Scan' : 'Scan' }}
         </button>
       </div>
       <div class="header-meta">
-        <span>Last updated: {{ lastUpdated }}</span>
-        <span>Data mode: Mock</span>
+        <span>Telemetry: Simulation</span>
+        <span>Sync: {{ lastUpdated }}</span>
       </div>
     </header>
 
@@ -75,7 +75,7 @@ function refreshMockQuotas(): void {
 
     <section v-if="providers.length > 0" class="best-choice" aria-label="Best provider now">
       <div>
-        <p class="section-label">Best now</p>
+        <p class="section-label">Active model</p>
         <h2>{{ bestProvider?.providerName ?? 'Unknown' }}</h2>
         <p>{{ bestReason }}</p>
       </div>
@@ -84,7 +84,9 @@ function refreshMockQuotas(): void {
       </span>
     </section>
 
-    <section v-if="providers.length > 0" class="suggestion-section" aria-label="Task suggestions">
+    <section v-if="providers.length > 0" class="mission-section" aria-label="Mission router">
+      <p class="section-label">Mission router</p>
+      <div class="suggestion-section">
       <div
         v-for="suggestion in taskSuggestions"
         :key="suggestion.label"
@@ -93,6 +95,7 @@ function refreshMockQuotas(): void {
       >
         <span>{{ suggestion.label }}</span>
         <strong>{{ suggestion.providerName }}</strong>
+      </div>
       </div>
     </section>
 
@@ -106,7 +109,7 @@ function refreshMockQuotas(): void {
     </section>
 
     <section v-if="providers.length > 0" class="attention-section" aria-label="Quota attention">
-      <strong>Attention</strong>
+      <strong>System Signal</strong>
       <p>{{ attentionMessage }}</p>
     </section>
   </main>

@@ -28,6 +28,13 @@ const centerValue = computed(() => {
   return typeof primaryPercent.value === 'number' ? `${primaryPercent.value}%` : 'Unknown';
 });
 const centerStatus = computed(() => getQuotaStatus(primaryPercent.value));
+const radarAngle = computed(() => {
+  if (typeof primaryPercent.value !== 'number') {
+    return 310;
+  }
+
+  return Math.round((primaryPercent.value / 100) * 360) - 90;
+});
 
 function getStrokeOffset(limit: QuotaLimit | undefined, circumference: number): number {
   const percent = limit?.remainingPercent;
@@ -54,6 +61,20 @@ function getStatusClass(status: ProviderStatus | undefined): string {
     role="img"
     :aria-label="`${quota.providerName} quota ${centerValue}`"
   >
+    <defs>
+      <filter id="quota-ring-glow" x="-35%" y="-35%" width="170%" height="170%">
+        <feGaussianBlur stdDeviation="2.4" result="blur" />
+        <feMerge>
+          <feMergeNode in="blur" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+      <radialGradient id="quota-core-gradient" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="rgba(229, 240, 255, 0.22)" />
+        <stop offset="100%" stop-color="rgba(56, 189, 248, 0.02)" />
+      </radialGradient>
+    </defs>
+
     <g class="quota-ticks" aria-hidden="true">
       <line
         v-for="angle in tickAngles"
@@ -92,6 +113,17 @@ function getStatusClass(status: ProviderStatus | undefined): string {
       :stroke-dasharray="circumferenceInner"
       :stroke-dashoffset="getStrokeOffset(secondaryLimit, circumferenceInner)"
     />
+
+    <circle class="quota-core" cx="60" cy="60" r="23" />
+    <line
+      :class="['quota-radar-hand', getStatusClass(centerStatus)]"
+      x1="60"
+      y1="60"
+      x2="60"
+      y2="26"
+      :transform="`rotate(${radarAngle} 60 60)`"
+    />
+    <circle :class="['quota-core-dot', getStatusClass(centerStatus)]" cx="60" cy="60" r="3.5" />
 
     <text :class="['quota-dial-value', getStatusClass(centerStatus)]" x="60" y="65" text-anchor="middle">
       {{ centerValue }}
