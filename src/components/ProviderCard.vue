@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import QuotaClockDial from './QuotaClockDial.vue';
 import type { ProviderQuota } from '../providers/types';
-import { formatStatus, getPrimaryPercent, getQuotaStatus } from '../utils/quotaStatus';
+import { formatStatus, getPrimaryPercent, getWorstStatus } from '../utils/quotaStatus';
 
 const props = defineProps<{
   quota: ProviderQuota;
 }>();
 
 function formatMainQuota(quota: ProviderQuota): string {
+  const primaryLimit = quota.limits[0];
+  if (primaryLimit?.kind === 'credits' && primaryLimit.balanceText) {
+    return primaryLimit.balanceText;
+  }
+
   const percent = getPrimaryPercent(quota.limits);
   if (typeof percent === 'number') {
     return `${percent}%`;
@@ -25,7 +30,19 @@ function getLimitValue(limit: ProviderQuota['limits'][number]): string {
   return limit.balanceText ?? 'Unknown';
 }
 
-const status = getQuotaStatus(getPrimaryPercent(props.quota.limits));
+function formatLimitKind(kind: ProviderQuota['limits'][number]['kind']): string {
+  const labels: Record<ProviderQuota['limits'][number]['kind'], string> = {
+    percentage: 'Quota',
+    credits: 'Credits',
+    tokens: 'Tokens',
+    rate: 'Rate',
+    status: 'Status',
+  };
+
+  return labels[kind];
+}
+
+const status = getWorstStatus(props.quota.limits);
 </script>
 
 <template>
@@ -39,13 +56,17 @@ const status = getQuotaStatus(getPrimaryPercent(props.quota.limits));
           <span class="status-chip" :data-status="status">{{ formatStatus(status) }}</span>
         </div>
         <p class="provider-main">{{ formatMainQuota(quota) }}</p>
+        <p class="provider-kind">{{ quota.limits.map((limit) => limit.label).join(' + ') }}</p>
         <p class="provider-recommendation">{{ quota.recommendation }}</p>
       </div>
     </div>
 
     <dl class="limit-list">
       <div v-for="limit in quota.limits" :key="limit.id" class="limit-row">
-        <dt>{{ limit.label }}</dt>
+        <dt>
+          <span>{{ limit.label }}</span>
+          <small>{{ formatLimitKind(limit.kind) }}</small>
+        </dt>
         <dd>
           <span>{{ getLimitValue(limit) }}</span>
           <span>reset {{ limit.resetAtText ?? 'Unknown' }}</span>

@@ -15,6 +15,7 @@ const circumferenceInner = 2 * Math.PI * radiusInner;
 
 const primaryLimit = computed(() => props.quota.limits[0]);
 const secondaryLimit = computed(() => props.quota.limits[1]);
+const hasSecondaryLimit = computed(() => Boolean(secondaryLimit.value));
 const primaryPercent = computed(() => getPrimaryPercent(props.quota.limits));
 const centerValue = computed(() => {
   const value = primaryPercent.value;
@@ -55,8 +56,15 @@ function getStatusClass(status: ProviderStatus | undefined): string {
       :stroke-dashoffset="getStrokeOffset(primaryLimit, circumferenceOuter)"
     />
 
-    <circle class="quota-ring-track quota-ring-track-inner" cx="60" cy="60" :r="radiusInner" />
     <circle
+      v-if="hasSecondaryLimit"
+      class="quota-ring-track quota-ring-track-inner"
+      cx="60"
+      cy="60"
+      :r="radiusInner"
+    />
+    <circle
+      v-if="hasSecondaryLimit"
       :class="['quota-ring-progress', getStatusClass(secondaryLimit?.status)]"
       cx="60"
       cy="60"
