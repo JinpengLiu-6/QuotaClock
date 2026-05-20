@@ -6,9 +6,11 @@
   "private": false,
   "license": "MIT",
   "scripts": {
+    "clean": "rm -rf dist",
     "dev": "vite --host 127.0.0.1",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
+    "rebuild": "npm run clean && npm run build",
     "test": "vitest run",
     "typecheck": "vue-tsc --noEmit"
   },

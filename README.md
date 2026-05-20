@@ -12,16 +12,14 @@ Screenshot placeholder: popup dashboard and ChatGPT/Codex HUD previews will be a
 
 - Chrome Extension Manifest V3.
 - Vue 3 + TypeScript + Vite popup dashboard.
-- ChatGPT/Codex page HUD injected by a content script.
-- Codex quota parser based on visible DOM text instead of fragile class names.
 - Local-only quota cache with `chrome.storage.local`.
 - SVG quota clock with dual-ring support for short-term and weekly limits.
-- Mock provider adapters for Claude, DeepSeek, and Qwen.
+- Mock provider adapters for Codex, Claude, DeepSeek, and Qwen.
 - No backend, no analytics, no telemetry.
 
 ## Supported Providers
 
-- Codex / ChatGPT: MVP DOM parser and HUD.
+- Codex / ChatGPT: mock popup data in the current UX prototype.
 - Claude: mock provider adapter.
 - DeepSeek: mock provider adapter.
 - Qwen: mock provider adapter.
@@ -58,6 +56,57 @@ Build the extension:
 npm run build
 ```
 
+Clean generated output:
+
+```bash
+npm run clean
+```
+
+Rebuild from scratch:
+
+```bash
+npm run rebuild
+```
+
+## Local Testing
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Build the Chrome extension:
+
+```bash
+npm run build
+```
+
+Load the unpacked extension in Chrome:
+
+1. Open `chrome://extensions`.
+2. Enable Developer mode.
+3. Click Load unpacked.
+4. Select the generated `dist` directory.
+5. Open the QuotaClock extension popup from the Chrome toolbar.
+
+After changing code:
+
+```bash
+npm run rebuild
+```
+
+Then return to `chrome://extensions`, click the reload icon on QuotaClock, and reopen the popup.
+
+Current prototype status:
+
+- The popup dashboard uses mock data for Codex, Claude, DeepSeek, and Qwen.
+- The Scan button refreshes the mock dashboard state only.
+- Scan is not connected to real Codex quota reading yet.
+- Real Codex quota parsing and the ChatGPT/Codex HUD are future testing targets.
+
+For a fuller checklist, see [docs/testing-guide.md](./docs/testing-guide.md).
+
 ## Load Unpacked Extension
 
 1. Run `npm run build`.
@@ -65,15 +114,15 @@ npm run build
 3. Enable Developer mode.
 4. Click Load unpacked.
 5. Select the generated `dist` directory.
-6. Open `https://chatgpt.com/` and use the QuotaClock popup or HUD refresh button.
+6. Open the QuotaClock popup from the Chrome toolbar.
 
-For Codex quota detection, open the visible Rate limits remaining panel first, then click Refresh.
+At this stage, the popup uses mock quota data. Real Codex quota detection is not wired into Scan yet.
 
 ## Privacy
 
 QuotaClock stores quota data locally in the browser and does not send it to any server.
 
-QuotaClock does not upload user data, does not use analytics, and does not intentionally read conversation content. The MVP content script reads visible page text only to find quota-related labels such as Rate limits remaining, 5h, Weekly, and percentage values.
+QuotaClock does not upload user data, does not use analytics, and does not intentionally read conversation content. The current popup prototype uses mock data only; future Codex quota parsing should read only quota-related labels such as Rate limits remaining, 5h, Weekly, and percentage values.
 
 ## Roadmap
 
