@@ -46,6 +46,6 @@ export interface RefreshQuotaResponse {
 }
 
 export interface HudPosition {
-  x: number;
-  y: number;
+  top: number;
+  left: number;
 }

@@ -1,6 +1,7 @@
 import type { HudPosition, ProviderQuota, ProviderStatus } from '../providers/types';
 
-const HUD_POSITION_KEY = 'quotaClock.hudPosition';
+const HUD_POSITION_KEY = 'hud:position';
+const LEGACY_HUD_POSITION_KEY = 'quotaClock.hudPosition';
 const QUOTA_KEY_PREFIX = 'quota:';
 
 export function createUnknownCodexQuota(): ProviderQuota {
@@ -53,8 +54,22 @@ export async function loadHudPosition(): Promise<HudPosition | null> {
     return null;
   }
 
-  const result = await chrome.storage.local.get(HUD_POSITION_KEY);
-  return (result[HUD_POSITION_KEY] as HudPosition | undefined) ?? null;
+  const result = await chrome.storage.local.get([HUD_POSITION_KEY, LEGACY_HUD_POSITION_KEY]);
+  const savedPosition = result[HUD_POSITION_KEY] as HudPosition | undefined;
+  const legacyPosition = result[LEGACY_HUD_POSITION_KEY] as { x?: number; y?: number } | undefined;
+
+  if (savedPosition) {
+    return savedPosition;
+  }
+
+  if (typeof legacyPosition?.x === 'number' && typeof legacyPosition.y === 'number') {
+    return {
+      top: legacyPosition.y,
+      left: legacyPosition.x,
+    };
+  }
+
+  return null;
 }
 
 export async function saveHudPosition(position: HudPosition): Promise<void> {

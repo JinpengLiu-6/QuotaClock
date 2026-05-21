@@ -72,15 +72,35 @@ Weekly 100% May 27
 
 7. Confirm parsed results are stored locally in `chrome.storage.local` with the `quota:codex` key.
 
-## Testing Future ChatGPT HUD
+## Testing ChatGPT HUD
 
-The ChatGPT/Codex HUD is a future integration target. When enabled, test:
+The ChatGPT/Codex HUD appears on supported ChatGPT pages.
+
+Test flow:
+
+1. Build the extension:
+
+```bash
+npm run build
+```
+
+2. Load `dist` as an unpacked extension.
+3. Open `https://chatgpt.com/`.
+4. Confirm the HUD appears near the top-right of the page.
+5. Open Settings and expand Rate limits remaining.
+6. Click HUD Scan.
+7. Confirm the HUD updates with Codex quota values.
+8. Open the extension popup and confirm Codex source is `dom`.
+9. Drag the HUD to another visible position.
+10. Reload the ChatGPT page and confirm the HUD position persists.
+
+Expected behavior:
 
 - HUD appears only on configured host matches.
-- HUD does not block primary page controls.
-- HUD can refresh quota state.
-- HUD position persists in `chrome.storage.local`.
-- Unknown states display helpful recovery text.
+- HUD defaults to Unknown if no `quota:codex` data exists.
+- HUD does not block the main input area.
+- HUD can scan visible quota text directly on the page.
+- HUD saves quota data and position in `chrome.storage.local`.
 
 ## Common Issues
 

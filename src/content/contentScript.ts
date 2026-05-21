@@ -1,9 +1,14 @@
-import type { RefreshQuotaResponse } from '../providers/types';
+import type { ProviderQuota, RefreshQuotaResponse } from '../providers/types';
 import { saveProviderQuota } from './contentQuota';
-import { mountHud } from './injectHud';
-import { parseCodexQuotaFromDocument } from './parsers/codexParser';
+import { injectHud } from './injectHud';
 
-mountHud(refreshCodexQuota);
+const CODEX_PARSER_ENTRY_PATH = 'content/codexParser.js';
+
+interface CodexParserModule {
+  parseCodexQuotaFromDocument(doc?: Document): ProviderQuota | null;
+}
+
+injectHud();
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type !== 'REFRESH_QUOTA') {
@@ -23,7 +28,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 });
 
 async function refreshCodexQuota(): Promise<RefreshQuotaResponse> {
-  const parsed = parseCodexQuotaFromDocument();
+  const parser = await loadCodexParser();
+  const parsed = parser.parseCodexQuotaFromDocument(document);
 
   if (!parsed) {
     return {
@@ -38,4 +44,8 @@ async function refreshCodexQuota(): Promise<RefreshQuotaResponse> {
     ok: true,
     quota: parsed,
   };
+}
+
+async function loadCodexParser(): Promise<CodexParserModule> {
+  return import(/* @vite-ignore */ chrome.runtime.getURL(CODEX_PARSER_ENTRY_PATH)) as Promise<CodexParserModule>;
 }

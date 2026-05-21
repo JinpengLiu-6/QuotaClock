@@ -1,106 +1,218 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { createUnknownCodexQuota } from '../providers/codexProvider';
-import type { HudPosition, ProviderQuota, RefreshQuotaResponse } from '../providers/types';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { parseCodexQuotaFromDocument } from '../content/parsers/codexParser';
+import type { HudPosition, ProviderQuota } from '../providers/types';
 import {
-  loadHudPosition,
-  loadProviderQuota,
+  getHudPosition,
+  getProviderQuota,
   saveHudPosition,
   saveProviderQuota,
 } from '../storage/quotaStorage';
 import { getPrimaryPercent } from '../utils/quotaStatus';
 
-const expanded = ref(false);
-const quota = ref<ProviderQuota>(createUnknownCodexQuota());
-const position = ref<HudPosition>({ x: 20, y: 88 });
-const message = ref('Open settings and refresh');
-const dragging = ref(false);
-const dragOffset = ref({ x: 0, y: 0 });
+const HUD_WIDTH = 210;
+const MIN_VISIBLE = 52;
+const DEFAULT_TOP = 88;
+const DEFAULT_RIGHT = 20;
 
-const lowestPercent = computed(() => {
+const expanded = ref(false);
+const quota = ref<ProviderQuota | null>(null);
+const position = ref<HudPosition>(getDefaultPosition());
+const scanMessage = ref('Idle');
+const isScanning = ref(false);
+const isDragging = ref(false);
+const didDrag = ref(false);
+const dragOffset = ref({ top: 0, left: 0 });
+
+const mainValue = computed(() => {
+  if (!quota.value) {
+    return 'Unknown';
+  }
+
   const percent = getPrimaryPercent(quota.value.limits);
   return typeof percent === 'number' ? `${percent}%` : 'Unknown';
+});
+const sourceLabel = computed(() => quota.value?.source ?? '');
+const updatedLabel = computed(() => {
+  if (!quota.value?.updatedAt) {
+    return 'Unknown';
+  }
+
+  return new Date(quota.value.updatedAt).toLocaleTimeString();
 });
 
 onMounted(async () => {
   const [savedQuota, savedPosition] = await Promise.all([
-    loadProviderQuota('codex'),
-    loadHudPosition(),
+    getProviderQuota('codex'),
+    getHudPosition(),
   ]);
 
   if (savedQuota) {
     quota.value = savedQuota;
-    message.value = savedQuota.recommendation;
+    scanMessage.value = `Loaded ${savedQuota.source} quota`;
   }
 
   if (savedPosition) {
-    position.value = savedPosition;
+    position.value = clampPosition(savedPosition);
   }
+
+  chrome.storage.onChanged.addListener(handleStorageChanged);
 });
 
-async function refreshQuota(): Promise<void> {
-  const response = await chrome.runtime.sendMessage({ type: 'REFRESH_QUOTA' }) as RefreshQuotaResponse;
+onUnmounted(() => {
+  chrome.storage.onChanged.removeListener(handleStorageChanged);
+});
 
-  if (response.ok && response.quota) {
-    quota.value = response.quota;
-    message.value = response.quota.recommendation;
-    await saveProviderQuota(response.quota);
+async function scanQuota(): Promise<void> {
+  isScanning.value = true;
+  scanMessage.value = 'Scanning current page...';
+
+  try {
+    const parsedQuota = parseCodexQuotaFromDocument(document);
+
+    if (!parsedQuota) {
+      scanMessage.value = 'Open Rate limits panel and scan again.';
+      return;
+    }
+
+    await saveProviderQuota(parsedQuota);
+    quota.value = parsedQuota;
+    scanMessage.value = 'Updated from DOM';
+  } catch {
+    scanMessage.value = 'Open Rate limits panel and scan again.';
+  } finally {
+    isScanning.value = false;
+  }
+}
+
+function toggleExpanded(): void {
+  if (didDrag.value) {
+    didDrag.value = false;
     return;
   }
 
-  message.value = response.error ?? 'Open settings and refresh';
+  expanded.value = !expanded.value;
+}
+
+function collapse(): void {
+  expanded.value = false;
 }
 
 function startDrag(event: PointerEvent): void {
-  dragging.value = true;
+  isDragging.value = true;
+  didDrag.value = false;
   dragOffset.value = {
-    x: event.clientX - position.value.x,
-    y: event.clientY - position.value.y,
+    top: event.clientY - position.value.top,
+    left: event.clientX - position.value.left,
   };
   window.addEventListener('pointermove', moveHud);
   window.addEventListener('pointerup', stopDrag, { once: true });
 }
 
 function moveHud(event: PointerEvent): void {
-  if (!dragging.value) {
+  if (!isDragging.value) {
     return;
   }
 
-  position.value = {
-    x: Math.max(8, Math.min(window.innerWidth - 230, event.clientX - dragOffset.value.x)),
-    y: Math.max(8, Math.min(window.innerHeight - 190, event.clientY - dragOffset.value.y)),
-  };
+  didDrag.value = true;
+  position.value = clampPosition({
+    top: event.clientY - dragOffset.value.top,
+    left: event.clientX - dragOffset.value.left,
+  });
 }
 
 async function stopDrag(): Promise<void> {
-  dragging.value = false;
+  isDragging.value = false;
   window.removeEventListener('pointermove', moveHud);
   await saveHudPosition(position.value);
+}
+
+function getLimitValue(limit: ProviderQuota['limits'][number]): string {
+  if (typeof limit.remainingPercent === 'number') {
+    return `${limit.remainingPercent}%`;
+  }
+
+  return limit.balanceText ?? 'Unknown';
+}
+
+function handleStorageChanged(changes: Record<string, chrome.storage.StorageChange>, areaName: string): void {
+  if (areaName !== 'local') {
+    return;
+  }
+
+  const codexQuota = changes['quota:codex']?.newValue as ProviderQuota | undefined;
+  if (codexQuota) {
+    quota.value = codexQuota;
+    scanMessage.value = `Loaded ${codexQuota.source} quota`;
+  }
+}
+
+function getDefaultPosition(): HudPosition {
+  return {
+    top: DEFAULT_TOP,
+    left: Math.max(8, window.innerWidth - HUD_WIDTH - DEFAULT_RIGHT),
+  };
+}
+
+function clampPosition(nextPosition: HudPosition): HudPosition {
+  return {
+    top: Math.max(8, Math.min(window.innerHeight - MIN_VISIBLE, nextPosition.top)),
+    left: Math.max(MIN_VISIBLE - HUD_WIDTH, Math.min(window.innerWidth - MIN_VISIBLE, nextPosition.left)),
+  };
 }
 </script>
 
 <template>
   <aside
     class="qc-hud"
-    :class="{ 'qc-hud-expanded': expanded }"
-    :style="{ left: `${position.x}px`, top: `${position.y}px` }"
+    :class="{ 'qc-hud-expanded': expanded, 'qc-hud-dragging': isDragging }"
+    :style="{ left: `${position.left}px`, top: `${position.top}px` }"
+    aria-label="QuotaClock ChatGPT quota overlay"
   >
-    <button class="qc-hud-bar" type="button" @click="expanded = !expanded" @pointerdown="startDrag">
-      <span>QuotaClock</span>
-      <strong>{{ lowestPercent }}</strong>
+    <button
+      class="qc-hud-compact"
+      type="button"
+      :aria-expanded="expanded"
+      aria-label="Toggle QuotaClock overlay"
+      @click="toggleExpanded"
+      @pointerdown="startDrag"
+    >
+      <span class="qc-hud-dot" aria-hidden="true"></span>
+      <span class="qc-hud-name">QuotaClock</span>
+      <strong>{{ mainValue }}</strong>
+      <small v-if="sourceLabel">{{ sourceLabel }}</small>
     </button>
 
-    <div v-if="expanded" class="qc-hud-panel">
-      <h2>Codex</h2>
-      <div v-for="limit in quota.limits" :key="limit.id" class="qc-hud-limit">
-        <span>{{ limit.label }}: {{ limit.remainingPercent ?? 'Unknown' }}{{ typeof limit.remainingPercent === 'number' ? '%' : '' }}</span>
-        <span>reset {{ limit.resetAtText ?? 'Unknown' }}</span>
+    <section v-if="expanded" class="qc-hud-panel">
+      <header class="qc-hud-panel-head">
+        <div>
+          <p>Codex</p>
+          <span>Source: {{ sourceLabel || 'Unknown' }}</span>
+        </div>
+        <button type="button" class="qc-hud-link-button" @click.stop="collapse">Collapse</button>
+      </header>
+
+      <div class="qc-hud-limit-list">
+        <div v-if="!quota" class="qc-hud-limit">
+          <span>Quota</span>
+          <strong>Unknown</strong>
+        </div>
+        <div v-for="limit in quota?.limits ?? []" :key="limit.id" class="qc-hud-limit">
+          <span>{{ limit.label }}</span>
+          <strong>{{ getLimitValue(limit) }}</strong>
+          <small>reset {{ limit.resetAtText ?? 'Unknown' }}</small>
+        </div>
       </div>
-      <p>Recommendation: {{ quota.recommendation }}</p>
-      <p v-if="quota.source === 'dom' && lowestPercent === 'Unknown'" class="qc-hud-note">
-        {{ message }}
+
+      <p class="qc-hud-recommendation">
+        Recommendation: {{ quota?.recommendation ?? 'Open Rate limits panel and scan again.' }}
       </p>
-      <button class="qc-secondary-button" type="button" @click.stop="refreshQuota">Refresh</button>
-    </div>
+      <p class="qc-hud-meta">Last updated: {{ updatedLabel }}</p>
+      <p class="qc-hud-note">{{ scanMessage }}</p>
+
+      <button class="qc-hud-scan" type="button" :disabled="isScanning" @click.stop="scanQuota">
+        {{ isScanning ? 'Scanning' : 'Scan' }}
+      </button>
+    </section>
   </aside>
 </template>

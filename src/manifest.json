@@ -31,6 +31,12 @@
       "run_at": "document_idle"
     }
   ],
+  "web_accessible_resources": [
+    {
+      "resources": ["content/hudEntry.js", "content/codexParser.js", "assets/*.js"],
+      "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*"]
+    }
+  ],
   "icons": {
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",
