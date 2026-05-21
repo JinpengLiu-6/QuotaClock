@@ -5,7 +5,12 @@ import { formatCommandStatus } from '../utils/recommendation';
 import { getPrimaryPercent, getWorstStatus } from '../utils/quotaStatus';
 
 const props = defineProps<{
+  expanded: boolean;
   quota: ProviderQuota;
+}>();
+
+const emit = defineEmits<{
+  toggle: [];
 }>();
 
 const status = getWorstStatus(props.quota.limits);
@@ -44,17 +49,28 @@ function getLimitValue(limit: QuotaLimit): string {
 </script>
 
 <template>
-  <article class="provider-card">
+  <article
+    class="provider-card"
+    :class="{ 'provider-card-expanded': expanded }"
+    role="button"
+    tabindex="0"
+    :aria-expanded="expanded"
+    :aria-label="`${quota.providerName} quota card`"
+    @click="emit('toggle')"
+    @keydown.enter.prevent="emit('toggle')"
+    @keydown.space.prevent="emit('toggle')"
+  >
     <div class="provider-card-top">
       <h3>{{ quota.providerName }}</h3>
       <div class="provider-badges">
         <span class="status-chip" :data-status="status">{{ formatCommandStatus(status) }}</span>
         <span class="source-dot">● {{ quota.source }}</span>
+        <span class="expand-indicator" aria-hidden="true">{{ expanded ? '−' : '+' }}</span>
       </div>
     </div>
 
     <div class="provider-summary">
-      <QuotaClockDial :quota="quota" :size="112" />
+      <QuotaClockDial :quota="quota" :size="88" />
 
       <div class="provider-copy">
         <p class="provider-main">{{ formatMainQuota(quota) }}</p>
@@ -64,7 +80,7 @@ function getLimitValue(limit: QuotaLimit): string {
       </div>
     </div>
 
-    <dl class="limit-list">
+    <dl v-if="expanded" class="limit-list">
       <div v-for="limit in quota.limits" :key="limit.id" class="limit-row">
         <dt>{{ limit.label }}</dt>
         <dd>

@@ -15,6 +15,7 @@ import { getWorstStatus } from '../utils/quotaStatus';
 const providers = ref<ProviderQuota[]>(getMockProviderQuotas());
 const refreshError = ref('');
 const isRefreshing = ref(false);
+const expandedProviderIds = ref<Set<string>>(new Set(['codex']));
 
 const bestProvider = computed(() => getBestProvider(providers.value));
 const bestStatus = computed(() => (bestProvider.value ? getWorstStatus(bestProvider.value.limits) : 'unknown'));
@@ -44,6 +45,22 @@ function refreshMockQuotas(): void {
       isRefreshing.value = false;
     }
   }, 180);
+}
+
+function isProviderExpanded(providerId: string): boolean {
+  return expandedProviderIds.value.has(providerId);
+}
+
+function toggleProvider(providerId: string): void {
+  const nextExpandedProviderIds = new Set(expandedProviderIds.value);
+
+  if (nextExpandedProviderIds.has(providerId)) {
+    nextExpandedProviderIds.delete(providerId);
+  } else {
+    nextExpandedProviderIds.add(providerId);
+  }
+
+  expandedProviderIds.value = nextExpandedProviderIds;
 }
 </script>
 
@@ -100,7 +117,13 @@ function refreshMockQuotas(): void {
     </section>
 
     <section v-if="providers.length > 0" class="provider-grid" aria-label="Provider clocks">
-      <ProviderCard v-for="provider in providers" :key="provider.providerId" :quota="provider" />
+      <ProviderCard
+        v-for="provider in providers"
+        :key="provider.providerId"
+        :expanded="isProviderExpanded(provider.providerId)"
+        :quota="provider"
+        @toggle="toggleProvider(provider.providerId)"
+      />
     </section>
 
     <section v-else class="empty-state" aria-label="No quota data">
