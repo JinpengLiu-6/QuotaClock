@@ -2,6 +2,10 @@ import type { ProviderQuota, ProviderStatus, QuotaLimit } from '../../providers/
 
 type CodexLimitType = '5h' | 'weekly';
 
+const RATE_LIMITS_PATTERN = /rate\s+limits\s+remaining/i;
+const FIVE_HOUR_PATTERN = /\b5\s*(?:h|hours?)\b/i;
+const WEEKLY_PATTERN = /\bweekly\b/i;
+
 interface ParsedLimit {
   type: CodexLimitType;
   remainingPercent: number;
@@ -10,33 +14,14 @@ interface ParsedLimit {
 
 export function parseCodexQuotaFromText(text: string): ProviderQuota | null {
   try {
-    const normalizedText = normalizeQuotaText(text);
+    const candidateText = extractQuotaCandidateText(text);
+    const parsedCandidate = parseNormalizedQuotaText(normalizeQuotaText(candidateText));
 
-    if (!normalizedText.includes('%') || !hasCodexLimitLabels(normalizedText)) {
-      return null;
+    if (parsedCandidate || candidateText === text) {
+      return parsedCandidate;
     }
 
-    const fiveHourLimit = parseLimit(normalizedText, '5h');
-    const weeklyLimit = parseLimit(normalizedText, 'weekly');
-    const parsedLimits = [fiveHourLimit, weeklyLimit].filter(
-      (limit): limit is ParsedLimit => Boolean(limit),
-    );
-
-    if (parsedLimits.length === 0) {
-      return null;
-    }
-
-    const limits = parsedLimits.map(toQuotaLimit);
-    const worstStatus = getWorstStatus(limits);
-
-    return {
-      providerId: 'codex',
-      providerName: 'Codex',
-      limits,
-      recommendation: getRecommendation(worstStatus),
-      updatedAt: new Date().toISOString(),
-      source: 'dom',
-    };
+    return parseNormalizedQuotaText(normalizeQuotaText(text));
   } catch {
     return null;
   }
@@ -48,17 +33,58 @@ export function parseCodexQuotaFromDocument(doc: Document = document): ProviderQ
 
 export const parseCodexQuotaText = parseCodexQuotaFromText;
 
+export function extractQuotaCandidateText(text: string): string {
+  const candidatePatterns = [RATE_LIMITS_PATTERN, FIVE_HOUR_PATTERN, WEEKLY_PATTERN];
+
+  for (const pattern of candidatePatterns) {
+    const match = text.match(pattern);
+
+    if (match && typeof match.index === 'number') {
+      return sliceAroundIndex(text, match.index, 1200);
+    }
+  }
+
+  return text.slice(Math.max(0, text.length - 2000));
+}
+
 function normalizeQuotaText(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
 }
 
+function parseNormalizedQuotaText(normalizedText: string): ProviderQuota | null {
+  if (!normalizedText.includes('%') || !hasCodexLimitLabels(normalizedText)) {
+    return null;
+  }
+
+  const fiveHourLimit = parseLimit(normalizedText, '5h');
+  const weeklyLimit = parseLimit(normalizedText, 'weekly');
+  const parsedLimits = [fiveHourLimit, weeklyLimit].filter(
+    (limit): limit is ParsedLimit => Boolean(limit),
+  );
+
+  if (parsedLimits.length === 0) {
+    return null;
+  }
+
+  const limits = parsedLimits.map(toQuotaLimit);
+  const worstStatus = getWorstStatus(limits);
+
+  return {
+    providerId: 'codex',
+    providerName: 'Codex',
+    limits,
+    recommendation: getRecommendation(worstStatus),
+    updatedAt: new Date().toISOString(),
+    source: 'dom',
+  };
+}
+
 function hasCodexLimitLabels(text: string): boolean {
-  return /\b5h\b/i.test(text) || /\bWeekly\b/i.test(text);
+  return FIVE_HOUR_PATTERN.test(text) || WEEKLY_PATTERN.test(text);
 }
 
 function parseLimit(text: string, type: CodexLimitType): ParsedLimit | null {
-  const label = type === 'weekly' ? 'Weekly' : '5h';
-  const segment = getLimitSegment(text, label);
+  const segment = getLimitSegment(text, type);
   const percentMatch = segment?.match(/(\d{1,3})\s*%/);
 
   if (!segment || !percentMatch) {
@@ -74,8 +100,8 @@ function parseLimit(text: string, type: CodexLimitType): ParsedLimit | null {
   };
 }
 
-function getLimitSegment(text: string, label: '5h' | 'Weekly'): string | null {
-  const labelPattern = new RegExp(`\\b${label}\\b`, 'i');
+function getLimitSegment(text: string, type: CodexLimitType): string | null {
+  const labelPattern = getLimitLabelPattern(type);
   const labelMatch = text.match(labelPattern);
 
   if (!labelMatch || typeof labelMatch.index !== 'number') {
@@ -84,7 +110,7 @@ function getLimitSegment(text: string, label: '5h' | 'Weekly'): string | null {
 
   const segmentStart = labelMatch.index;
   const remainingText = text.slice(segmentStart + labelMatch[0].length);
-  const nextLabelPattern = label === '5h' ? /\bWeekly\b/i : /\b5h\b/i;
+  const nextLabelPattern = type === '5h' ? WEEKLY_PATTERN : FIVE_HOUR_PATTERN;
   const nextLabelMatch = remainingText.match(nextLabelPattern);
   const segmentEnd =
     nextLabelMatch && typeof nextLabelMatch.index === 'number'
@@ -92,6 +118,10 @@ function getLimitSegment(text: string, label: '5h' | 'Weekly'): string | null {
       : text.length;
 
   return text.slice(segmentStart, segmentEnd);
+}
+
+function getLimitLabelPattern(type: CodexLimitType): RegExp {
+  return type === 'weekly' ? WEEKLY_PATTERN : FIVE_HOUR_PATTERN;
 }
 
 function extractResetText(textAfterPercent: string, type: CodexLimitType): string {
@@ -174,4 +204,10 @@ function getRecommendation(status: ProviderStatus): string {
 
 function clampPercent(percent: number): number {
   return Math.min(Math.max(percent, 0), 100);
+}
+
+function sliceAroundIndex(text: string, index: number, radius: number): string {
+  const start = Math.max(0, index - radius);
+  const end = Math.min(text.length, index + radius);
+  return text.slice(start, end);
 }

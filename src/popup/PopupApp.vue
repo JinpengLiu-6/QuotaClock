@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import ProviderCard from '../components/ProviderCard.vue';
 import { getMockProviderQuotas } from '../providers';
-import type { ProviderQuota, RefreshQuotaResponse } from '../providers/types';
+import type { ProviderQuota, RefreshQuotaResponse, ScanDebugInfo } from '../providers/types';
 import { getAllProviderQuotas, saveProviderQuota } from '../storage/quotaStorage';
 import {
   formatCommandStatus,
@@ -17,6 +17,7 @@ const providers = ref<ProviderQuota[]>(getMockProviderQuotas());
 const refreshError = ref('');
 const isRefreshing = ref(false);
 const scanStatus = ref('Idle');
+const scanDebug = ref<ScanDebugInfo | null>(null);
 const expandedProviderIds = ref<Set<string>>(new Set(['codex']));
 
 const bestProvider = computed(() => getBestProvider(providers.value));
@@ -50,6 +51,7 @@ async function loadStoredQuotas(): Promise<void> {
 
 async function scanActiveTabQuota(): Promise<void> {
   refreshError.value = '';
+  scanDebug.value = null;
   isRefreshing.value = true;
   scanStatus.value = 'Scanning current tab...';
 
@@ -69,15 +71,18 @@ async function scanActiveTabQuota(): Promise<void> {
     if (!response.ok || !response.quota) {
       refreshError.value = response.error ?? 'Could not read quota. Open Rate limits panel and scan again.';
       scanStatus.value = refreshError.value;
+      scanDebug.value = response.debug ?? null;
       return;
     }
 
     await saveProviderQuota(response.quota);
     providers.value = mergeProviderQuotas(providers.value, [response.quota]);
+    scanDebug.value = null;
     scanStatus.value = 'Codex quota updated from DOM · source: dom';
   } catch {
     refreshError.value = 'Could not read quota. Open Rate limits panel and scan again.';
     scanStatus.value = refreshError.value;
+    scanDebug.value = null;
   } finally {
     isRefreshing.value = false;
   }
@@ -137,6 +142,24 @@ function isSupportedQuotaPage(url?: string): boolean {
     </header>
 
     <p v-if="refreshError" class="inline-alert">{{ refreshError }}</p>
+
+    <details v-if="refreshError && scanDebug" class="scan-debug-panel">
+      <summary>Scan debug</summary>
+      <div class="scan-debug-grid">
+        <span>hasBody</span>
+        <strong>{{ scanDebug.hasBody }}</strong>
+        <span>textLength</span>
+        <strong>{{ scanDebug.textLength }}</strong>
+        <span>hasRateLimitsRemaining</span>
+        <strong>{{ scanDebug.hasRateLimitsRemaining }}</strong>
+        <span>has5h</span>
+        <strong>{{ scanDebug.has5h }}</strong>
+        <span>hasWeekly</span>
+        <strong>{{ scanDebug.hasWeekly }}</strong>
+      </div>
+      <p>Copy the snippet below and paste it into an issue if parsing fails.</p>
+      <pre>{{ scanDebug.nearbySnippet || scanDebug.matchedSnippet || 'No page text captured.' }}</pre>
+    </details>
 
     <section v-if="providers.length > 0" class="best-choice" aria-label="Best provider now">
       <div>

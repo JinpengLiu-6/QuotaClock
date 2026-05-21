@@ -215,6 +215,55 @@ p {
   line-height: 1.35;
 }
 
+.scan-debug-panel {
+  margin-top: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  padding: 7px;
+  color: var(--qc-text-muted);
+  background: rgba(15, 23, 42, 0.62);
+  font-size: 11px;
+}
+
+.scan-debug-panel summary {
+  color: var(--qc-text);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.scan-debug-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+  margin-top: 7px;
+}
+
+.scan-debug-grid strong {
+  color: var(--qc-text);
+  font-weight: 850;
+}
+
+.scan-debug-panel p {
+  margin-top: 7px;
+  color: var(--qc-text-dim);
+  line-height: 1.3;
+}
+
+.scan-debug-panel pre {
+  max-height: 160px;
+  margin: 6px 0 0;
+  overflow: auto;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 6px;
+  padding: 6px;
+  color: #cbd5e1;
+  background: rgba(2, 6, 23, 0.54);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 10px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
 .best-choice {
   position: relative;
   display: grid;

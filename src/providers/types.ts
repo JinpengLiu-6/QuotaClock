@@ -43,9 +43,20 @@ export interface RefreshQuotaResponse {
   ok: boolean;
   quota?: ProviderQuota;
   error?: string;
+  debug?: ScanDebugInfo;
 }
 
 export interface HudPosition {
   top: number;
   left: number;
+}
+
+export interface ScanDebugInfo {
+  hasBody: boolean;
+  textLength: number;
+  hasRateLimitsRemaining: boolean;
+  has5h: boolean;
+  hasWeekly: boolean;
+  matchedSnippet?: string;
+  nearbySnippet?: string;
 }

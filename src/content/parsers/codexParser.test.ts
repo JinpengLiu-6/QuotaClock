@@ -134,4 +134,72 @@ describe('parseCodexQuotaFromText', () => {
       },
     ]);
   });
+
+  it('supports loose five-hour labels and spaced percent symbols without panel title', () => {
+    const result = parseCodexQuotaFromText('5 h\n99 %\n4:00 PM\nWeekly\n100 %\nMay 27');
+
+    expect(result?.limits).toMatchObject([
+      {
+        id: 'codex-5h',
+        remainingPercent: 99,
+        resetAtText: '4:00 PM',
+      },
+      {
+        id: 'codex-weekly',
+        remainingPercent: 100,
+        resetAtText: 'May 27',
+      },
+    ]);
+  });
+
+  it('supports reset labels between quota percentages and reset values', () => {
+    const result = parseCodexQuotaFromText('5h 99% reset 4:00 PM Weekly 100% reset May 27');
+
+    expect(result?.limits).toMatchObject([
+      {
+        id: 'codex-5h',
+        remainingPercent: 99,
+        resetAtText: '4:00 PM',
+      },
+      {
+        id: 'codex-weekly',
+        remainingPercent: 100,
+        resetAtText: 'May 27',
+      },
+    ]);
+  });
+
+  it('supports 5 hours as the short-term quota label', () => {
+    const result = parseCodexQuotaFromText('5 hours\n99%\n4:00 PM\nWeekly\n100%\nMay 27');
+
+    expect(result?.limits).toMatchObject([
+      {
+        id: 'codex-5h',
+        remainingPercent: 99,
+        resetAtText: '4:00 PM',
+      },
+      {
+        id: 'codex-weekly',
+        remainingPercent: 100,
+        resetAtText: 'May 27',
+      },
+    ]);
+  });
+
+  it('parses quota text without the Rate limits remaining heading', () => {
+    const result = parseCodexQuotaFromText('Account usage 5h 64% 8:30 PM Weekly 91% Jun 2');
+
+    expect(result?.limits).toMatchObject([
+      {
+        id: 'codex-5h',
+        remainingPercent: 64,
+        resetAtText: '8:30 PM',
+      },
+      {
+        id: 'codex-weekly',
+        remainingPercent: 91,
+        resetAtText: 'Jun 2',
+      },
+    ]);
+  });
 });
