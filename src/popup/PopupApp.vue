@@ -16,6 +16,7 @@ import { getWorstStatus } from '../utils/quotaStatus';
 const providers = ref<ProviderQuota[]>(getMockProviderQuotas());
 const refreshError = ref('');
 const isRefreshing = ref(false);
+const scanStatus = ref('Idle');
 const expandedProviderIds = ref<Set<string>>(new Set(['codex']));
 
 const bestProvider = computed(() => getBestProvider(providers.value));
@@ -50,12 +51,14 @@ async function loadStoredQuotas(): Promise<void> {
 async function scanActiveTabQuota(): Promise<void> {
   refreshError.value = '';
   isRefreshing.value = true;
+  scanStatus.value = 'Scanning current tab...';
 
   try {
     const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
     if (!activeTab.id || !isSupportedQuotaPage(activeTab.url)) {
       refreshError.value = 'Please open ChatGPT/Codex page first.';
+      scanStatus.value = 'Please open ChatGPT/Codex page first.';
       return;
     }
 
@@ -65,13 +68,16 @@ async function scanActiveTabQuota(): Promise<void> {
 
     if (!response.ok || !response.quota) {
       refreshError.value = response.error ?? 'Could not read quota. Open Rate limits panel and scan again.';
+      scanStatus.value = refreshError.value;
       return;
     }
 
     await saveProviderQuota(response.quota);
     providers.value = mergeProviderQuotas(providers.value, [response.quota]);
+    scanStatus.value = 'Codex quota updated from DOM · source: dom';
   } catch {
     refreshError.value = 'Could not read quota. Open Rate limits panel and scan again.';
+    scanStatus.value = refreshError.value;
   } finally {
     isRefreshing.value = false;
   }
@@ -127,6 +133,7 @@ function isSupportedQuotaPage(url?: string): boolean {
         <span>Telemetry: {{ dataMode }}</span>
         <span>Sync: {{ lastUpdated }}</span>
       </div>
+      <p class="scan-status" aria-live="polite">{{ scanStatus }}</p>
     </header>
 
     <p v-if="refreshError" class="inline-alert">{{ refreshError }}</p>

@@ -58,22 +58,61 @@ function hasCodexLimitLabels(text: string): boolean {
 
 function parseLimit(text: string, type: CodexLimitType): ParsedLimit | null {
   const label = type === 'weekly' ? 'Weekly' : '5h';
-  const resetPattern =
-    type === 'weekly'
-      ? '([A-Z][a-z]{2,9}\\s+\\d{1,2}|\\d{1,2}:\\d{2}(?:\\s*[AP]M)?|Unknown)'
-      : '(\\d{1,2}:\\d{2}(?:\\s*[AP]M)?|Unknown)';
-  const pattern = new RegExp(`\\b${label}\\b\\s+(\\d{1,3})\\s*%\\s+${resetPattern}`, 'i');
-  const match = text.match(pattern);
+  const segment = getLimitSegment(text, label);
+  const percentMatch = segment?.match(/(\d{1,3})\s*%/);
 
-  if (!match) {
+  if (!segment || !percentMatch) {
     return null;
   }
 
+  const resetCandidate = segment.slice((percentMatch.index ?? 0) + percentMatch[0].length);
+
   return {
     type,
-    remainingPercent: clampPercent(Number(match[1])),
-    resetAtText: match[2].trim(),
+    remainingPercent: clampPercent(Number(percentMatch[1])),
+    resetAtText: extractResetText(resetCandidate, type),
   };
+}
+
+function getLimitSegment(text: string, label: '5h' | 'Weekly'): string | null {
+  const labelPattern = new RegExp(`\\b${label}\\b`, 'i');
+  const labelMatch = text.match(labelPattern);
+
+  if (!labelMatch || typeof labelMatch.index !== 'number') {
+    return null;
+  }
+
+  const segmentStart = labelMatch.index;
+  const remainingText = text.slice(segmentStart + labelMatch[0].length);
+  const nextLabelPattern = label === '5h' ? /\bWeekly\b/i : /\b5h\b/i;
+  const nextLabelMatch = remainingText.match(nextLabelPattern);
+  const segmentEnd =
+    nextLabelMatch && typeof nextLabelMatch.index === 'number'
+      ? segmentStart + labelMatch[0].length + nextLabelMatch.index
+      : text.length;
+
+  return text.slice(segmentStart, segmentEnd);
+}
+
+function extractResetText(textAfterPercent: string, type: CodexLimitType): string {
+  const resetPatterns =
+    type === 'weekly'
+      ? [/\b([A-Z][a-z]{2,9}\s+\d{1,2})\b/i, /\b(\d{1,2}:\d{2}\s*(?:AM|PM)?)\b/i, /\b(Unknown)\b/i]
+      : [/\b(\d{1,2}:\d{2}\s*(?:AM|PM)?)\b/i, /\b(Unknown)\b/i];
+
+  for (const pattern of resetPatterns) {
+    const match = textAfterPercent.match(pattern);
+
+    if (match) {
+      return normalizeResetText(match[1]);
+    }
+  }
+
+  return 'Unknown';
+}
+
+function normalizeResetText(resetText: string): string {
+  return resetText.replace(/\s+/g, ' ').trim();
 }
 
 function toQuotaLimit(limit: ParsedLimit): QuotaLimit {
