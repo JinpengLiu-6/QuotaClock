@@ -102,6 +102,62 @@ Expected behavior:
 - HUD can scan visible quota text directly on the page.
 - HUD saves quota data and position in `chrome.storage.local`.
 
+## Developer Debugging
+
+### Open the extension popup console
+
+1. Open `chrome://extensions`.
+2. Find QuotaClock.
+3. Click Details.
+4. Click Inspect views next to the popup entry.
+5. Open the Console tab.
+
+Use this console for popup Scan errors, Vue runtime errors, and popup storage reads.
+
+### Open the content script console
+
+1. Open `https://chatgpt.com/`.
+2. Open Chrome DevTools for the ChatGPT tab.
+3. Open the Console tab.
+4. Use the execution context selector if needed and choose a QuotaClock/content script context.
+
+Use this console for HUD injection, HUD Scan, and parser behavior on the live page.
+
+### Inspect local extension storage
+
+In the extension popup console or content script console, run:
+
+```js
+chrome.storage.local.get(null).then(console.log)
+```
+
+Expected Codex keys:
+
+- `quota:codex`
+- `hud:position`
+
+QuotaClock should not store chat content.
+
+### Confirm HUD root
+
+On a supported ChatGPT page, run:
+
+```js
+document.querySelector("#quotaclock-hud-root")
+```
+
+It should return the HUD root element.
+
+### Confirm there is no duplicate HUD
+
+Run:
+
+```js
+document.querySelectorAll("#quotaclock-hud-root").length
+```
+
+The expected value is `1`.
+
 ## Common Issues
 
 ### dist directory does not exist

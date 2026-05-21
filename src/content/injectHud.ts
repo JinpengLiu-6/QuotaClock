@@ -1,11 +1,25 @@
 const HUD_ROOT_ID = 'quotaclock-hud-root';
 const HUD_ENTRY_PATH = 'content/hudEntry.js';
 
+let hudObserver: MutationObserver | null = null;
+let isMountingHud = false;
+let hudLoadFailed = false;
+
 export function injectHud(): void {
-  if (!document.body || !isSupportedLocation(window.location.href) || document.getElementById(HUD_ROOT_ID)) {
+  if (!isSupportedLocation(window.location.href)) {
     return;
   }
 
+  ensureHudRoot();
+  startHudObserver();
+}
+
+function ensureHudRoot(): void {
+  if (!document.body || document.getElementById(HUD_ROOT_ID) || isMountingHud || hudLoadFailed) {
+    return;
+  }
+
+  isMountingHud = true;
   const root = document.createElement('div');
   root.id = HUD_ROOT_ID;
   document.body.append(root);
@@ -16,8 +30,27 @@ export function injectHud(): void {
       module.mountHudWidget(root);
     })
     .catch(() => {
+      hudLoadFailed = true;
       root.remove();
+    })
+    .finally(() => {
+      isMountingHud = false;
     });
+}
+
+function startHudObserver(): void {
+  if (hudObserver) {
+    return;
+  }
+
+  hudObserver = new MutationObserver(() => {
+    window.requestAnimationFrame(ensureHudRoot);
+  });
+
+  hudObserver.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
 }
 
 function isSupportedLocation(href: string): boolean {

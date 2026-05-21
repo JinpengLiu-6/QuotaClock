@@ -35,8 +35,13 @@ export async function loadProviderQuota(providerId: string): Promise<ProviderQuo
     return null;
   }
 
-  const result = await chrome.storage.local.get(getQuotaStorageKey(providerId));
-  return (result[getQuotaStorageKey(providerId)] as ProviderQuota | undefined) ?? null;
+  try {
+    const result = await chrome.storage.local.get(getQuotaStorageKey(providerId));
+    const quota = result[getQuotaStorageKey(providerId)];
+    return isProviderQuota(quota) ? quota : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function saveProviderQuota(quota: ProviderQuota): Promise<void> {
@@ -44,9 +49,13 @@ export async function saveProviderQuota(quota: ProviderQuota): Promise<void> {
     return;
   }
 
-  await chrome.storage.local.set({
-    [getQuotaStorageKey(quota.providerId)]: quota,
-  });
+  try {
+    await chrome.storage.local.set({
+      [getQuotaStorageKey(quota.providerId)]: quota,
+    });
+  } catch {
+    return;
+  }
 }
 
 export async function loadHudPosition(): Promise<HudPosition | null> {
@@ -54,22 +63,26 @@ export async function loadHudPosition(): Promise<HudPosition | null> {
     return null;
   }
 
-  const result = await chrome.storage.local.get([HUD_POSITION_KEY, LEGACY_HUD_POSITION_KEY]);
-  const savedPosition = result[HUD_POSITION_KEY] as HudPosition | undefined;
-  const legacyPosition = result[LEGACY_HUD_POSITION_KEY] as { x?: number; y?: number } | undefined;
+  try {
+    const result = await chrome.storage.local.get([HUD_POSITION_KEY, LEGACY_HUD_POSITION_KEY]);
+    const savedPosition = result[HUD_POSITION_KEY];
+    const legacyPosition = result[LEGACY_HUD_POSITION_KEY] as { x?: number; y?: number } | undefined;
 
-  if (savedPosition) {
-    return savedPosition;
+    if (isHudPosition(savedPosition)) {
+      return savedPosition;
+    }
+
+    if (typeof legacyPosition?.x === 'number' && typeof legacyPosition.y === 'number') {
+      return {
+        top: legacyPosition.y,
+        left: legacyPosition.x,
+      };
+    }
+
+    return null;
+  } catch {
+    return null;
   }
-
-  if (typeof legacyPosition?.x === 'number' && typeof legacyPosition.y === 'number') {
-    return {
-      top: legacyPosition.y,
-      left: legacyPosition.x,
-    };
-  }
-
-  return null;
 }
 
 export async function saveHudPosition(position: HudPosition): Promise<void> {
@@ -77,7 +90,11 @@ export async function saveHudPosition(position: HudPosition): Promise<void> {
     return;
   }
 
-  await chrome.storage.local.set({ [HUD_POSITION_KEY]: position });
+  try {
+    await chrome.storage.local.set({ [HUD_POSITION_KEY]: position });
+  } catch {
+    return;
+  }
 }
 
 function getRecommendation(status: ProviderStatus): string {
@@ -102,4 +119,24 @@ export function getPrimaryPercent(limits: ProviderQuota['limits']): number | und
 
 function getQuotaStorageKey(providerId: string): string {
   return `${QUOTA_KEY_PREFIX}${providerId}`;
+}
+
+function isProviderQuota(value: unknown): value is ProviderQuota {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'providerId' in value &&
+    'providerName' in value &&
+    'limits' in value &&
+    Array.isArray((value as ProviderQuota).limits)
+  );
+}
+
+function isHudPosition(value: unknown): value is HudPosition {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as HudPosition).top === 'number' &&
+    typeof (value as HudPosition).left === 'number'
+  );
 }

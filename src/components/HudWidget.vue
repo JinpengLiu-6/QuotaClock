@@ -11,7 +11,9 @@ import {
 import { getPrimaryPercent } from '../utils/quotaStatus';
 
 const HUD_WIDTH = 210;
-const MIN_VISIBLE = 52;
+const MIN_VISIBLE_WIDTH = 80;
+const MIN_VISIBLE_HEIGHT = 60;
+const DRAG_THRESHOLD = 4;
 const DEFAULT_TOP = 88;
 const DEFAULT_RIGHT = 20;
 
@@ -23,6 +25,7 @@ const isScanning = ref(false);
 const isDragging = ref(false);
 const didDrag = ref(false);
 const dragOffset = ref({ top: 0, left: 0 });
+const dragStart = ref({ x: 0, y: 0 });
 
 const mainValue = computed(() => {
   if (!quota.value) {
@@ -56,11 +59,11 @@ onMounted(async () => {
     position.value = clampPosition(savedPosition);
   }
 
-  chrome.storage.onChanged.addListener(handleStorageChanged);
+  chrome.storage?.onChanged?.addListener(handleStorageChanged);
 });
 
 onUnmounted(() => {
-  chrome.storage.onChanged.removeListener(handleStorageChanged);
+  chrome.storage?.onChanged?.removeListener(handleStorageChanged);
 });
 
 async function scanQuota(): Promise<void> {
@@ -101,6 +104,10 @@ function collapse(): void {
 function startDrag(event: PointerEvent): void {
   isDragging.value = true;
   didDrag.value = false;
+  dragStart.value = {
+    x: event.clientX,
+    y: event.clientY,
+  };
   dragOffset.value = {
     top: event.clientY - position.value.top,
     left: event.clientX - position.value.left,
@@ -111,6 +118,11 @@ function startDrag(event: PointerEvent): void {
 
 function moveHud(event: PointerEvent): void {
   if (!isDragging.value) {
+    return;
+  }
+
+  const distance = Math.hypot(event.clientX - dragStart.value.x, event.clientY - dragStart.value.y);
+  if (distance <= DRAG_THRESHOLD) {
     return;
   }
 
@@ -156,8 +168,8 @@ function getDefaultPosition(): HudPosition {
 
 function clampPosition(nextPosition: HudPosition): HudPosition {
   return {
-    top: Math.max(8, Math.min(window.innerHeight - MIN_VISIBLE, nextPosition.top)),
-    left: Math.max(MIN_VISIBLE - HUD_WIDTH, Math.min(window.innerWidth - MIN_VISIBLE, nextPosition.left)),
+    top: Math.max(8, Math.min(window.innerHeight - MIN_VISIBLE_HEIGHT, nextPosition.top)),
+    left: Math.max(8, Math.min(window.innerWidth - MIN_VISIBLE_WIDTH, nextPosition.left)),
   };
 }
 </script>
