@@ -1,9 +1,7 @@
-import type { HudPosition, ParsedCodexQuota, ProviderQuota, ProviderStatus } from '../providers/types';
+import type { HudPosition, ProviderQuota, ProviderStatus } from '../providers/types';
 
-const QUOTA_STORAGE_KEY = 'quotaClock.providerQuotas';
 const HUD_POSITION_KEY = 'quotaClock.hudPosition';
-
-type StoredProviderQuotas = Record<string, ProviderQuota>;
+const QUOTA_KEY_PREFIX = 'quota:';
 
 export function createUnknownCodexQuota(): ProviderQuota {
   return {
@@ -31,33 +29,13 @@ export function createUnknownCodexQuota(): ProviderQuota {
   };
 }
 
-export function codexQuotaFromParsed(parsed: ParsedCodexQuota): ProviderQuota {
-  const limits = parsed.limits.map((limit) => {
-    const status = getQuotaStatus(limit.remainingPercent);
-
-    return {
-      id: `codex-${limit.type}`,
-      label: limit.type === 'weekly' ? 'Weekly' : '5h',
-      kind: 'percentage' as const,
-      remainingPercent: limit.remainingPercent,
-      resetAtText: limit.resetAtText,
-      status,
-    };
-  });
-
-  return {
-    providerId: parsed.providerId,
-    providerName: 'Codex',
-    limits,
-    recommendation: getRecommendation(getQuotaStatus(getPrimaryPercent(limits))),
-    updatedAt: parsed.updatedAt,
-    source: 'dom',
-  };
-}
-
 export async function loadProviderQuota(providerId: string): Promise<ProviderQuota | null> {
-  const quotas = await loadProviderQuotas();
-  return quotas[providerId] ?? null;
+  if (!globalThis.chrome?.storage?.local) {
+    return null;
+  }
+
+  const result = await chrome.storage.local.get(getQuotaStorageKey(providerId));
+  return (result[getQuotaStorageKey(providerId)] as ProviderQuota | undefined) ?? null;
 }
 
 export async function saveProviderQuota(quota: ProviderQuota): Promise<void> {
@@ -65,12 +43,8 @@ export async function saveProviderQuota(quota: ProviderQuota): Promise<void> {
     return;
   }
 
-  const quotas = await loadProviderQuotas();
   await chrome.storage.local.set({
-    [QUOTA_STORAGE_KEY]: {
-      ...quotas,
-      [quota.providerId]: quota,
-    },
+    [getQuotaStorageKey(quota.providerId)]: quota,
   });
 }
 
@@ -89,26 +63,6 @@ export async function saveHudPosition(position: HudPosition): Promise<void> {
   }
 
   await chrome.storage.local.set({ [HUD_POSITION_KEY]: position });
-}
-
-function getQuotaStatus(remainingPercent?: number): ProviderStatus {
-  if (typeof remainingPercent !== 'number' || Number.isNaN(remainingPercent)) {
-    return 'unknown';
-  }
-
-  if (remainingPercent >= 70) {
-    return 'good';
-  }
-
-  if (remainingPercent >= 40) {
-    return 'caution';
-  }
-
-  if (remainingPercent >= 15) {
-    return 'critical';
-  }
-
-  return 'blocked';
 }
 
 function getRecommendation(status: ProviderStatus): string {
@@ -131,11 +85,6 @@ export function getPrimaryPercent(limits: ProviderQuota['limits']): number | und
   return percentages.length > 0 ? Math.min(...percentages) : undefined;
 }
 
-async function loadProviderQuotas(): Promise<StoredProviderQuotas> {
-  if (!globalThis.chrome?.storage?.local) {
-    return {};
-  }
-
-  const result = await chrome.storage.local.get(QUOTA_STORAGE_KEY);
-  return (result[QUOTA_STORAGE_KEY] as StoredProviderQuotas | undefined) ?? {};
+function getQuotaStorageKey(providerId: string): string {
+  return `${QUOTA_KEY_PREFIX}${providerId}`;
 }

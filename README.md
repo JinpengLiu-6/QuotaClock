@@ -100,10 +100,10 @@ Then return to `chrome://extensions`, click the reload icon on QuotaClock, and r
 
 Current prototype status:
 
-- The popup dashboard uses mock data for Codex, Claude, DeepSeek, and Qwen.
-- The Scan button refreshes the mock dashboard state only.
-- Scan is not connected to real Codex quota reading yet.
-- Real Codex quota parsing and the ChatGPT/Codex HUD are future testing targets.
+- The popup dashboard starts with mock data for Codex, Claude, DeepSeek, and Qwen.
+- Scan can replace Codex mock data with DOM-parsed quota data on supported ChatGPT/Codex pages.
+- Claude, DeepSeek, and Qwen remain mock providers.
+- The ChatGPT/Codex HUD remains a future testing target.
 
 For a fuller checklist, see [docs/testing-guide.md](./docs/testing-guide.md).
 
@@ -116,7 +116,7 @@ For a fuller checklist, see [docs/testing-guide.md](./docs/testing-guide.md).
 5. Select the generated `dist` directory.
 6. Open the QuotaClock popup from the Chrome toolbar.
 
-At this stage, the popup uses mock quota data. Real Codex quota detection is not wired into Scan yet.
+At this stage, the popup starts with mock quota data. On `chatgpt.com` or `chat.openai.com`, Scan can read visible Rate limits remaining text and update Codex locally.
 
 ## Privacy
 

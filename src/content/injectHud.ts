@@ -135,7 +135,7 @@ function renderHud(
       await saveProviderQuota(response.quota);
     } else {
       state.message =
-        response.error ?? 'Could not read quota. Please open the Rate limits remaining panel, then refresh again.';
+        response.error ?? 'Could not read quota. Open Rate limits panel and scan again.';
     }
 
     renderHud(root, state, refreshQuota);

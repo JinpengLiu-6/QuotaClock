@@ -1,5 +1,5 @@
 import type { RefreshQuotaResponse } from '../providers/types';
-import { codexQuotaFromParsed, saveProviderQuota } from './contentQuota';
+import { saveProviderQuota } from './contentQuota';
 import { mountHud } from './injectHud';
 import { parseCodexQuotaFromDocument } from './parsers/codexParser';
 
@@ -15,7 +15,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     .catch(() => {
       sendResponse({
         ok: false,
-        error: 'Could not read quota. Please open the Rate limits remaining panel, then refresh again.',
+        error: 'Could not read quota. Open Rate limits panel and scan again.',
       } satisfies RefreshQuotaResponse);
     });
 
@@ -28,15 +28,14 @@ async function refreshCodexQuota(): Promise<RefreshQuotaResponse> {
   if (!parsed) {
     return {
       ok: false,
-      error: 'Could not read quota. Please open the Rate limits remaining panel, then refresh again.',
+      error: 'Could not read quota. Open Rate limits panel and scan again.',
     };
   }
 
-  const quota = codexQuotaFromParsed(parsed);
-  await saveProviderQuota(quota);
+  await saveProviderQuota(parsed);
 
   return {
     ok: true,
-    quota,
+    quota: parsed,
   };
 }

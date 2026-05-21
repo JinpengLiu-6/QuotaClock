@@ -2,7 +2,8 @@
 import { computed, ref } from 'vue';
 import ProviderCard from '../components/ProviderCard.vue';
 import { getMockProviderQuotas } from '../providers';
-import type { ProviderQuota } from '../providers/types';
+import type { ProviderQuota, RefreshQuotaResponse } from '../providers/types';
+import { getAllProviderQuotas, saveProviderQuota } from '../storage/quotaStorage';
 import {
   formatCommandStatus,
   getAttentionMessage,
@@ -24,6 +25,10 @@ const bestReason = computed(() =>
 );
 const taskSuggestions = computed(() => getTaskSuggestions(providers.value));
 const attentionMessage = computed(() => getAttentionMessage(providers.value));
+const dataMode = computed(() => {
+  const hasDomQuota = providers.value.some((provider) => provider.source === 'dom');
+  return hasDomQuota ? 'Mixed' : 'Simulation';
+});
 const lastUpdated = computed(() => {
   const timestamps = providers.value
     .map((provider) => Date.parse(provider.updatedAt))
@@ -32,19 +37,44 @@ const lastUpdated = computed(() => {
   return timestamps.length > 0 ? new Date(Math.max(...timestamps)).toLocaleTimeString() : 'Unknown';
 });
 
-function refreshMockQuotas(): void {
+void loadStoredQuotas();
+
+async function loadStoredQuotas(): Promise<void> {
+  const storedQuotas = await getAllProviderQuotas();
+
+  if (storedQuotas.length > 0) {
+    providers.value = mergeProviderQuotas(providers.value, storedQuotas);
+  }
+}
+
+async function scanActiveTabQuota(): Promise<void> {
   refreshError.value = '';
   isRefreshing.value = true;
 
-  window.setTimeout(() => {
-    try {
-      providers.value = getMockProviderQuotas();
-    } catch {
-      refreshError.value = 'Could not read quota. Open Rate limits panel and refresh again.';
-    } finally {
-      isRefreshing.value = false;
+  try {
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    if (!activeTab.id || !isSupportedQuotaPage(activeTab.url)) {
+      refreshError.value = 'Please open ChatGPT/Codex page first.';
+      return;
     }
-  }, 180);
+
+    const response = (await chrome.tabs.sendMessage(activeTab.id, {
+      type: 'REFRESH_QUOTA',
+    })) as RefreshQuotaResponse;
+
+    if (!response.ok || !response.quota) {
+      refreshError.value = response.error ?? 'Could not read quota. Open Rate limits panel and scan again.';
+      return;
+    }
+
+    await saveProviderQuota(response.quota);
+    providers.value = mergeProviderQuotas(providers.value, [response.quota]);
+  } catch {
+    refreshError.value = 'Could not read quota. Open Rate limits panel and scan again.';
+  } finally {
+    isRefreshing.value = false;
+  }
 }
 
 function isProviderExpanded(providerId: string): boolean {
@@ -62,6 +92,17 @@ function toggleProvider(providerId: string): void {
 
   expandedProviderIds.value = nextExpandedProviderIds;
 }
+
+function mergeProviderQuotas(currentQuotas: ProviderQuota[], nextQuotas: ProviderQuota[]): ProviderQuota[] {
+  const nextQuotaByProviderId = new Map(nextQuotas.map((quota) => [quota.providerId, quota]));
+  return currentQuotas.map((quota) => nextQuotaByProviderId.get(quota.providerId) ?? quota);
+}
+
+function isSupportedQuotaPage(url?: string): boolean {
+  return Boolean(
+    url?.startsWith('https://chatgpt.com/') || url?.startsWith('https://chat.openai.com/'),
+  );
+}
 </script>
 
 <template>
@@ -77,13 +118,13 @@ function toggleProvider(providerId: string): void {
           type="button"
           aria-label="Scan quota dashboard"
           :disabled="isRefreshing"
-          @click="refreshMockQuotas"
+          @click="scanActiveTabQuota"
         >
           {{ isRefreshing ? 'Scan' : 'Scan' }}
         </button>
       </div>
       <div class="header-meta">
-        <span>Telemetry: Simulation</span>
+        <span>Telemetry: {{ dataMode }}</span>
         <span>Sync: {{ lastUpdated }}</span>
       </div>
     </header>

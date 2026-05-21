@@ -1,6 +1,6 @@
 # Testing Guide
 
-This guide covers local Chrome Extension testing for QuotaClock during the mock-data MVP stage.
+This guide covers local Chrome Extension testing for QuotaClock during the popup MVP stage.
 
 ## Testing Popup UI
 
@@ -39,7 +39,7 @@ The current popup uses mock data for:
 - DeepSeek
 - Qwen
 
-The Scan button currently refreshes mock dashboard state only. It does not read real Codex quota data yet.
+Claude, DeepSeek, and Qwen remain mock providers. Codex can be replaced with DOM data when Scan succeeds on a supported ChatGPT/Codex page.
 
 Check that each provider card shows:
 
@@ -51,16 +51,18 @@ Check that each provider card shows:
 - Recommendation
 - QuotaClockDial
 
-## Testing Future Codex Parser
+## Testing Codex Scan
 
-Real Codex quota parsing is a future integration target. When implemented, test it on a ChatGPT/Codex page with the Rate limits remaining panel open.
+Codex quota parsing reads visible page text locally from `document.body.innerText`. It does not upload data or call a backend.
 
-Expected future test flow:
+Test flow:
 
 1. Open `https://chatgpt.com/`.
-2. Open the Rate limits remaining panel.
-3. Click Scan in QuotaClock.
-4. Confirm the parser can read rows like:
+2. Open Settings.
+3. Expand the Rate limits remaining panel.
+4. Click Scan in QuotaClock.
+5. Confirm the Codex card source changes from `mock` to `dom`.
+6. Confirm the parser can read rows like:
 
 ```text
 Rate limits remaining
@@ -68,7 +70,7 @@ Rate limits remaining
 Weekly 100% May 27
 ```
 
-5. Confirm parsed results are stored locally in `chrome.storage.local`.
+7. Confirm parsed results are stored locally in `chrome.storage.local` with the `quota:codex` key.
 
 ## Testing Future ChatGPT HUD
 
@@ -114,4 +116,4 @@ Confirm `host_permissions` and `content_scripts.matches` in `dist/manifest.json`
 
 ### Scan cannot read quota
 
-Real quota reading is not connected in the current mock popup prototype. For the future Codex parser, first open the ChatGPT/Codex Rate limits remaining panel, then scan again.
+Open the ChatGPT/Codex Rate limits remaining panel first, then scan again. If you are not on `chatgpt.com` or `chat.openai.com`, open a supported page before scanning.

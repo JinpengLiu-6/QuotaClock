@@ -1,26 +1,10 @@
 import type { HudPosition, ProviderQuota } from '../providers/types';
 
-const QUOTA_STORAGE_KEY = 'quotaClock.providerQuotas';
 const HUD_POSITION_KEY = 'quotaClock.hudPosition';
-
-type StoredProviderQuotas = Record<string, ProviderQuota>;
+const QUOTA_KEY_PREFIX = 'quota:';
 
 function hasChromeStorage(): boolean {
   return Boolean(globalThis.chrome?.storage?.local);
-}
-
-export async function loadProviderQuotas(): Promise<StoredProviderQuotas> {
-  if (!hasChromeStorage()) {
-    return {};
-  }
-
-  const result = await chrome.storage.local.get(QUOTA_STORAGE_KEY);
-  return (result[QUOTA_STORAGE_KEY] as StoredProviderQuotas | undefined) ?? {};
-}
-
-export async function loadProviderQuota(providerId: string): Promise<ProviderQuota | null> {
-  const quotas = await loadProviderQuotas();
-  return quotas[providerId] ?? null;
 }
 
 export async function saveProviderQuota(quota: ProviderQuota): Promise<void> {
@@ -28,30 +12,46 @@ export async function saveProviderQuota(quota: ProviderQuota): Promise<void> {
     return;
   }
 
-  const quotas = await loadProviderQuotas();
   await chrome.storage.local.set({
-    [QUOTA_STORAGE_KEY]: {
-      ...quotas,
-      [quota.providerId]: quota,
-    },
+    [getQuotaStorageKey(quota.providerId)]: quota,
   });
 }
 
-export async function saveProviderQuotas(quotas: ProviderQuota[]): Promise<void> {
+export async function getProviderQuota(providerId: string): Promise<ProviderQuota | null> {
   if (!hasChromeStorage()) {
-    return;
+    return null;
   }
 
-  const existing = await loadProviderQuotas();
-  const next = quotas.reduce<StoredProviderQuotas>(
-    (accumulator, quota) => ({
-      ...accumulator,
-      [quota.providerId]: quota,
-    }),
-    existing,
-  );
+  const result = await chrome.storage.local.get(getQuotaStorageKey(providerId));
+  return (result[getQuotaStorageKey(providerId)] as ProviderQuota | undefined) ?? null;
+}
 
-  await chrome.storage.local.set({ [QUOTA_STORAGE_KEY]: next });
+export async function getAllProviderQuotas(): Promise<ProviderQuota[]> {
+  if (!hasChromeStorage()) {
+    return [];
+  }
+
+  const result = await chrome.storage.local.get(null);
+  return Object.entries(result)
+    .filter(([key]) => key.startsWith(QUOTA_KEY_PREFIX))
+    .map(([, value]) => value)
+    .filter(isProviderQuota);
+}
+
+export async function loadProviderQuota(providerId: string): Promise<ProviderQuota | null> {
+  return getProviderQuota(providerId);
+}
+
+export async function loadProviderQuotas(): Promise<Record<string, ProviderQuota>> {
+  const quotas = await getAllProviderQuotas();
+  return quotas.reduce<Record<string, ProviderQuota>>((accumulator, quota) => {
+    accumulator[quota.providerId] = quota;
+    return accumulator;
+  }, {});
+}
+
+export async function saveProviderQuotas(quotas: ProviderQuota[]): Promise<void> {
+  await Promise.all(quotas.map((quota) => saveProviderQuota(quota)));
 }
 
 export async function loadHudPosition(): Promise<HudPosition | null> {
@@ -69,4 +69,19 @@ export async function saveHudPosition(position: HudPosition): Promise<void> {
   }
 
   await chrome.storage.local.set({ [HUD_POSITION_KEY]: position });
+}
+
+function getQuotaStorageKey(providerId: string): string {
+  return `${QUOTA_KEY_PREFIX}${providerId}`;
+}
+
+function isProviderQuota(value: unknown): value is ProviderQuota {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'providerId' in value &&
+    'providerName' in value &&
+    'limits' in value &&
+    Array.isArray((value as ProviderQuota).limits)
+  );
 }

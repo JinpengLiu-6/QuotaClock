@@ -1,84 +1,138 @@
-import type { ParsedCodexQuota } from '../../providers/types';
+import type { ProviderQuota, ProviderStatus, QuotaLimit } from '../../providers/types';
 
-const PANEL_KEYWORDS = ['Rate limits remaining', '5h', 'Weekly', '%'];
+type CodexLimitType = '5h' | 'weekly';
 
-export function parseCodexQuotaText(text: string): ParsedCodexQuota | null {
+interface ParsedLimit {
+  type: CodexLimitType;
+  remainingPercent: number;
+  resetAtText: string;
+}
+
+export function parseCodexQuotaFromText(text: string): ProviderQuota | null {
   try {
-    if (!hasQuotaKeywords(text)) {
+    const normalizedText = normalizeQuotaText(text);
+
+    if (!normalizedText.includes('%') || !hasCodexLimitLabels(normalizedText)) {
       return null;
     }
 
-    const lines = text
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
+    const fiveHourLimit = parseLimit(normalizedText, '5h');
+    const weeklyLimit = parseLimit(normalizedText, 'weekly');
+    const parsedLimits = [fiveHourLimit, weeklyLimit].filter(
+      (limit): limit is ParsedLimit => Boolean(limit),
+    );
 
-    const fiveHourLimit = findLimitLine(lines, '5h');
-    const weeklyLimit = findLimitLine(lines, 'Weekly');
-
-    if (!fiveHourLimit && !weeklyLimit) {
+    if (parsedLimits.length === 0) {
       return null;
     }
+
+    const limits = parsedLimits.map(toQuotaLimit);
+    const worstStatus = getWorstStatus(limits);
 
     return {
       providerId: 'codex',
-      limits: [fiveHourLimit, weeklyLimit].filter(
-        (limit): limit is ParsedCodexQuota['limits'][number] => Boolean(limit),
-      ),
+      providerName: 'Codex',
+      limits,
+      recommendation: getRecommendation(worstStatus),
       updatedAt: new Date().toISOString(),
+      source: 'dom',
     };
   } catch {
     return null;
   }
 }
 
-export function parseCodexQuotaFromDocument(doc: Document = document): ParsedCodexQuota | null {
-  return parseCodexQuotaText(doc.body?.innerText ?? '');
+export function parseCodexQuotaFromDocument(doc: Document = document): ProviderQuota | null {
+  return parseCodexQuotaFromText(doc.body?.innerText ?? '');
 }
 
-function hasQuotaKeywords(text: string): boolean {
-  return PANEL_KEYWORDS.every((keyword) => text.includes(keyword));
+export const parseCodexQuotaText = parseCodexQuotaFromText;
+
+function normalizeQuotaText(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
 }
 
-function findLimitLine(
-  lines: string[],
-  label: '5h' | 'Weekly',
-): ParsedCodexQuota['limits'][number] | null {
-  const line = lines.find((candidate) => {
-    const normalized = candidate.toLowerCase();
-    return normalized.includes(label.toLowerCase()) && normalized.includes('%');
-  });
+function hasCodexLimitLabels(text: string): boolean {
+  return /\b5h\b/i.test(text) || /\bWeekly\b/i.test(text);
+}
 
-  if (!line) {
+function parseLimit(text: string, type: CodexLimitType): ParsedLimit | null {
+  const label = type === 'weekly' ? 'Weekly' : '5h';
+  const resetPattern =
+    type === 'weekly'
+      ? '([A-Z][a-z]{2,9}\\s+\\d{1,2}|\\d{1,2}:\\d{2}(?:\\s*[AP]M)?|Unknown)'
+      : '(\\d{1,2}:\\d{2}(?:\\s*[AP]M)?|Unknown)';
+  const pattern = new RegExp(`\\b${label}\\b\\s+(\\d{1,3})\\s*%\\s+${resetPattern}`, 'i');
+  const match = text.match(pattern);
+
+  if (!match) {
     return null;
   }
-
-  const percentMatch = line.match(/(\d{1,3})\s*%/);
-  if (!percentMatch) {
-    return null;
-  }
-
-  const remainingPercent = clampPercent(Number(percentMatch[1]));
-  const resetAtText = extractResetText(line, label, percentMatch[0]);
 
   return {
-    type: label === 'Weekly' ? 'weekly' : '5h',
-    remainingPercent,
-    resetAtText: resetAtText || 'Unknown',
+    type,
+    remainingPercent: clampPercent(Number(match[1])),
+    resetAtText: match[2].trim(),
   };
+}
+
+function toQuotaLimit(limit: ParsedLimit): QuotaLimit {
+  return {
+    id: `codex-${limit.type}`,
+    label: limit.type === 'weekly' ? 'Weekly' : '5h',
+    kind: 'percentage',
+    remainingPercent: limit.remainingPercent,
+    resetAtText: limit.resetAtText,
+    status: getQuotaStatus(limit.remainingPercent),
+  };
+}
+
+function getQuotaStatus(remainingPercent?: number): ProviderStatus {
+  if (typeof remainingPercent !== 'number' || Number.isNaN(remainingPercent)) {
+    return 'unknown';
+  }
+
+  if (remainingPercent >= 70) {
+    return 'good';
+  }
+
+  if (remainingPercent >= 40) {
+    return 'caution';
+  }
+
+  if (remainingPercent >= 15) {
+    return 'critical';
+  }
+
+  return 'blocked';
+}
+
+function getWorstStatus(limits: QuotaLimit[]): ProviderStatus {
+  const rank: Record<ProviderStatus, number> = {
+    blocked: 0,
+    critical: 1,
+    caution: 2,
+    good: 3,
+    unknown: 4,
+  };
+
+  return limits.reduce<ProviderStatus>((worst, limit) => {
+    return rank[limit.status] < rank[worst] ? limit.status : worst;
+  }, 'unknown');
+}
+
+function getRecommendation(status: ProviderStatus): string {
+  const recommendations: Record<ProviderStatus, string> = {
+    good: 'Large task OK',
+    caution: 'Medium tasks recommended',
+    critical: 'Small tasks only',
+    blocked: 'Wait reset or switch model',
+    unknown: 'Open provider page to refresh quota',
+  };
+
+  return recommendations[status];
 }
 
 function clampPercent(percent: number): number {
   return Math.min(Math.max(percent, 0), 100);
-}
-
-function extractResetText(line: string, label: string, percentText: string): string {
-  const percentEnd = line.indexOf(percentText) + percentText.length;
-  const afterPercent = line.slice(percentEnd).trim();
-
-  if (afterPercent) {
-    return afterPercent;
-  }
-
-  return line.replace(label, '').replace(percentText, '').trim();
 }
