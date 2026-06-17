@@ -24,6 +24,10 @@ Use this checklist before merging a Chrome extension MVP branch.
 
 ## C. Manual Provider Input
 
+- [ ] Open `https://claude.ai/`.
+- [ ] Popup detects Claude.
+- [ ] Click Scan.
+- [ ] Claude manual editor opens.
 - [ ] Click Edit on Claude.
 - [ ] Save a new percentage and reset value.
 - [ ] Claude card source changes to `manual`.

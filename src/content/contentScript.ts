@@ -1,6 +1,7 @@
 import type { ProviderQuota, RefreshQuotaResponse, ScanDebugInfo } from '../providers/types';
 import { saveProviderQuota } from './contentQuota';
 import { injectHud } from './injectHud';
+import { detectProviderPage } from '../utils/providerDetection';
 
 const CODEX_PARSER_ENTRY_PATH = 'content/codexParser.js';
 
@@ -12,6 +13,14 @@ interface CodexParserModule {
 injectHud();
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === 'GET_PROVIDER_PAGE') {
+    sendResponse({
+      ok: true,
+      page: detectProviderPage(window.location.href),
+    });
+    return false;
+  }
+
   if (message?.type !== 'REFRESH_QUOTA') {
     return false;
   }
@@ -31,6 +40,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 });
 
 async function refreshCodexQuota(): Promise<RefreshQuotaResponse> {
+  const pageInfo = detectProviderPage(window.location.href);
+
+  if (!pageInfo?.supportsDomScan) {
+    return {
+      ok: false,
+      error: pageInfo
+        ? `${pageInfo.providerName} detected. Use manual input for now.`
+        : 'Please open a supported AI provider page first.',
+    };
+  }
+
   const parser = await loadCodexParser();
   const parsed = parser.parseCodexQuotaFromDocument(document);
 

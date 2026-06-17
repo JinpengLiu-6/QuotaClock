@@ -16,6 +16,7 @@ Screenshot placeholder: popup dashboard and ChatGPT/Codex HUD previews will be a
 - SVG quota clock with dual-ring support for short-term and weekly limits.
 - Codex / ChatGPT DOM scan for visible Rate limits remaining text.
 - ChatGPT page HUD with local scan, drag, collapse, and persisted position.
+- Active tab detection for Codex/ChatGPT, Claude, DeepSeek, and Qwen pages.
 - Manual local quota input for Codex, Claude, DeepSeek, and Qwen.
 - Mock provider adapters as defaults before manual or DOM data exists.
 - No backend, no analytics, no telemetry.
@@ -23,9 +24,9 @@ Screenshot placeholder: popup dashboard and ChatGPT/Codex HUD previews will be a
 ## Supported Providers
 
 - Codex / ChatGPT: DOM scan from visible Rate limits remaining text, plus manual input.
-- Claude: manual input with mock default.
-- DeepSeek: manual balance input with mock default.
-- Qwen: manual input with mock default.
+- Claude: page detection and manual input with mock default.
+- DeepSeek: page detection and manual balance input with mock default.
+- Qwen: page detection and manual input with mock default.
 
 ## Development
 
@@ -104,6 +105,7 @@ Then return to `chrome://extensions`, click the reload icon on QuotaClock, and r
 Current prototype status:
 
 - The popup dashboard starts with mock data for Codex, Claude, DeepSeek, and Qwen.
+- The popup detects the active supported AI page and shows whether DOM scan or manual input is available.
 - Scan can replace Codex mock data with DOM-parsed quota data on supported ChatGPT/Codex pages.
 - Claude, DeepSeek, and Qwen can be updated manually and stored locally.
 - The ChatGPT/Codex HUD appears on supported ChatGPT pages and shares storage with the popup.

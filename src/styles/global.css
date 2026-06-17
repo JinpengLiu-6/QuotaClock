@@ -172,6 +172,29 @@ p {
   white-space: nowrap;
 }
 
+.page-detection {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  overflow: hidden;
+  color: var(--qc-text-dim);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.page-detection strong {
+  color: var(--qc-text);
+  font-weight: 950;
+}
+
+.page-detection span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .primary-button {
   min-height: 30px;
   border: 1px solid rgba(56, 189, 248, 0.52);

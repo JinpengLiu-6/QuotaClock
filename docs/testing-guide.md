@@ -70,6 +70,20 @@ Expected storage keys:
 - Manual provider data is saved under `quota:{providerId}`.
 - Reset mock removes that provider key from `chrome.storage.local`.
 
+## Testing Active Page Detection
+
+The popup detects supported AI pages from the active tab URL.
+
+Test these pages:
+
+- `https://chatgpt.com/`: shows Codex and DOM scan ready.
+- `https://chat.openai.com/`: shows Codex and DOM scan ready.
+- `https://claude.ai/`: shows Claude and Manual input.
+- `https://www.deepseek.com/`: shows DeepSeek and Manual input.
+- `https://chat.qwen.ai/`: shows Qwen and Manual input.
+
+On Claude, DeepSeek, or Qwen pages, clicking Scan should open the matching manual editor instead of showing a ChatGPT-only error.
+
 ## Testing Codex Scan
 
 Codex quota parsing reads visible page text locally from `document.body.innerText`. It does not upload data or call a backend.

@@ -26,7 +26,13 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*"],
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://www.deepseek.com/*",
+        "https://chat.qwen.ai/*"
+      ],
       "js": ["content/contentScript.js"],
       "run_at": "document_idle"
     }

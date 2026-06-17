@@ -9,6 +9,7 @@ import {
   createManualLimitDrafts,
   type ManualLimitDraft,
 } from '../utils/manualQuota';
+import { detectProviderPage, type ProviderPageInfo } from '../utils/providerDetection';
 import {
   formatCommandStatus,
   getAttentionMessage,
@@ -26,6 +27,7 @@ const scanDebug = ref<ScanDebugInfo | null>(null);
 const expandedProviderIds = ref<Set<string>>(new Set(['codex']));
 const editingProviderId = ref<string | null>(null);
 const manualDrafts = ref<ManualLimitDraft[]>([]);
+const currentPage = ref<ProviderPageInfo | null>(null);
 
 const bestProvider = computed(() => getBestProvider(providers.value));
 const bestStatus = computed(() => (bestProvider.value ? getWorstStatus(bestProvider.value.limits) : 'unknown'));
@@ -64,12 +66,22 @@ const editingProvider = computed(() =>
 );
 
 void loadStoredQuotas();
+void detectActiveTabProvider();
 
 async function loadStoredQuotas(): Promise<void> {
   const storedQuotas = await getAllProviderQuotas();
 
   if (storedQuotas.length > 0) {
     providers.value = mergeProviderQuotas(providers.value, storedQuotas);
+  }
+}
+
+async function detectActiveTabProvider(): Promise<void> {
+  try {
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    currentPage.value = detectProviderPage(activeTab.url);
+  } catch {
+    currentPage.value = null;
   }
 }
 
@@ -81,10 +93,25 @@ async function scanActiveTabQuota(): Promise<void> {
 
   try {
     const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const pageInfo = detectProviderPage(activeTab.url);
+    currentPage.value = pageInfo;
 
-    if (!activeTab.id || !isSupportedQuotaPage(activeTab.url)) {
-      refreshError.value = 'Please open ChatGPT/Codex page first.';
-      scanStatus.value = 'Please open ChatGPT/Codex page first.';
+    if (!activeTab.id || !pageInfo) {
+      refreshError.value = 'Please open a supported AI provider page first.';
+      scanStatus.value = 'Please open a supported AI provider page first.';
+      return;
+    }
+
+    if (!pageInfo.supportsDomScan) {
+      const provider = providers.value.find((quota) => quota.providerId === pageInfo.providerId);
+
+      if (provider) {
+        openManualEditor(provider);
+        expandedProviderIds.value = new Set([...expandedProviderIds.value, provider.providerId]);
+      }
+
+      refreshError.value = '';
+      scanStatus.value = `${pageInfo.providerName} detected · use manual input for now`;
       return;
     }
 
@@ -174,11 +201,6 @@ function mergeProviderQuotas(currentQuotas: ProviderQuota[], nextQuotas: Provide
   return currentQuotas.map((quota) => nextQuotaByProviderId.get(quota.providerId) ?? quota);
 }
 
-function isSupportedQuotaPage(url?: string): boolean {
-  return Boolean(
-    url?.startsWith('https://chatgpt.com/') || url?.startsWith('https://chat.openai.com/'),
-  );
-}
 </script>
 
 <template>
@@ -203,6 +225,11 @@ function isSupportedQuotaPage(url?: string): boolean {
         <span>Telemetry: {{ dataMode }}</span>
         <span>Sync: {{ lastUpdated }}</span>
       </div>
+      <p class="page-detection">
+        Page:
+        <strong>{{ currentPage?.providerName ?? 'Not detected' }}</strong>
+        <span>{{ currentPage?.supportsDomScan ? 'DOM scan ready' : currentPage ? 'Manual input' : 'Open supported AI page' }}</span>
+      </p>
       <p class="scan-status" aria-live="polite">{{ scanStatus }}</p>
     </header>
 
