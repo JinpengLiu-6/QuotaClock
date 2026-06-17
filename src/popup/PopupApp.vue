@@ -3,7 +3,12 @@ import { computed, ref } from 'vue';
 import ProviderCard from '../components/ProviderCard.vue';
 import { getMockProviderQuotas } from '../providers';
 import type { ProviderQuota, RefreshQuotaResponse, ScanDebugInfo } from '../providers/types';
-import { getAllProviderQuotas, saveProviderQuota } from '../storage/quotaStorage';
+import { deleteProviderQuota, getAllProviderQuotas, saveProviderQuota } from '../storage/quotaStorage';
+import {
+  applyManualQuotaUpdate,
+  createManualLimitDrafts,
+  type ManualLimitDraft,
+} from '../utils/manualQuota';
 import {
   formatCommandStatus,
   getAttentionMessage,
@@ -19,6 +24,8 @@ const isRefreshing = ref(false);
 const scanStatus = ref('Idle');
 const scanDebug = ref<ScanDebugInfo | null>(null);
 const expandedProviderIds = ref<Set<string>>(new Set(['codex']));
+const editingProviderId = ref<string | null>(null);
+const manualDrafts = ref<ManualLimitDraft[]>([]);
 
 const bestProvider = computed(() => getBestProvider(providers.value));
 const bestStatus = computed(() => (bestProvider.value ? getWorstStatus(bestProvider.value.limits) : 'unknown'));
@@ -29,7 +36,21 @@ const taskSuggestions = computed(() => getTaskSuggestions(providers.value));
 const attentionMessage = computed(() => getAttentionMessage(providers.value));
 const dataMode = computed(() => {
   const hasDomQuota = providers.value.some((provider) => provider.source === 'dom');
-  return hasDomQuota ? 'Mixed' : 'Simulation';
+  const hasManualQuota = providers.value.some((provider) => provider.source === 'manual');
+
+  if (hasDomQuota && hasManualQuota) {
+    return 'DOM + Manual';
+  }
+
+  if (hasDomQuota) {
+    return 'Mixed';
+  }
+
+  if (hasManualQuota) {
+    return 'Manual';
+  }
+
+  return 'Simulation';
 });
 const lastUpdated = computed(() => {
   const timestamps = providers.value
@@ -38,6 +59,9 @@ const lastUpdated = computed(() => {
 
   return timestamps.length > 0 ? new Date(Math.max(...timestamps)).toLocaleTimeString() : 'Unknown';
 });
+const editingProvider = computed(() =>
+  providers.value.find((provider) => provider.providerId === editingProviderId.value) ?? null,
+);
 
 void loadStoredQuotas();
 
@@ -104,6 +128,47 @@ function toggleProvider(providerId: string): void {
   expandedProviderIds.value = nextExpandedProviderIds;
 }
 
+function openManualEditor(provider: ProviderQuota): void {
+  editingProviderId.value = provider.providerId;
+  manualDrafts.value = createManualLimitDrafts(provider);
+}
+
+function closeManualEditor(): void {
+  editingProviderId.value = null;
+  manualDrafts.value = [];
+}
+
+async function saveManualQuota(): Promise<void> {
+  if (!editingProvider.value) {
+    return;
+  }
+
+  const updatedQuota = applyManualQuotaUpdate(editingProvider.value, manualDrafts.value);
+  await saveProviderQuota(updatedQuota);
+  providers.value = mergeProviderQuotas(providers.value, [updatedQuota]);
+  expandedProviderIds.value = new Set([...expandedProviderIds.value, updatedQuota.providerId]);
+  scanStatus.value = `${updatedQuota.providerName} quota saved manually`;
+  closeManualEditor();
+}
+
+async function resetProviderQuota(): Promise<void> {
+  if (!editingProvider.value) {
+    return;
+  }
+
+  const providerId = editingProvider.value.providerId;
+  const mockQuota = getMockProviderQuotas().find((provider) => provider.providerId === providerId);
+
+  await deleteProviderQuota(providerId);
+
+  if (mockQuota) {
+    providers.value = mergeProviderQuotas(providers.value, [mockQuota]);
+  }
+
+  scanStatus.value = `${editingProvider.value.providerName} reset to simulation`;
+  closeManualEditor();
+}
+
 function mergeProviderQuotas(currentQuotas: ProviderQuota[], nextQuotas: ProviderQuota[]): ProviderQuota[] {
   const nextQuotaByProviderId = new Map(nextQuotas.map((quota) => [quota.providerId, quota]));
   return currentQuotas.map((quota) => nextQuotaByProviderId.get(quota.providerId) ?? quota);
@@ -161,6 +226,48 @@ function isSupportedQuotaPage(url?: string): boolean {
       <pre>{{ scanDebug.nearbySnippet || scanDebug.matchedSnippet || 'No page text captured.' }}</pre>
     </details>
 
+    <section v-if="editingProvider" class="manual-editor" aria-label="Manual quota editor">
+      <header class="manual-editor-head">
+        <div>
+          <p class="section-label">Manual input</p>
+          <h2>{{ editingProvider.providerName }}</h2>
+        </div>
+        <button class="card-mini-button" type="button" @click="closeManualEditor">Close</button>
+      </header>
+
+      <div class="manual-limit-list">
+        <label v-for="draft in manualDrafts" :key="draft.id" class="manual-limit-row">
+          <span>{{ editingProvider.limits.find((limit) => limit.id === draft.id)?.label ?? 'Limit' }}</span>
+          <input
+            v-model="draft.remainingPercent"
+            type="number"
+            min="0"
+            max="100"
+            inputmode="numeric"
+            placeholder="%"
+            aria-label="Remaining percent"
+          />
+          <input
+            v-model="draft.balanceText"
+            type="text"
+            placeholder="Balance"
+            aria-label="Balance text"
+          />
+          <input
+            v-model="draft.resetAtText"
+            type="text"
+            placeholder="Reset"
+            aria-label="Reset text"
+          />
+        </label>
+      </div>
+
+      <div class="manual-actions">
+        <button class="primary-button" type="button" @click="saveManualQuota">Save</button>
+        <button class="secondary-button" type="button" @click="resetProviderQuota">Reset mock</button>
+      </div>
+    </section>
+
     <section v-if="providers.length > 0" class="best-choice" aria-label="Best provider now">
       <div>
         <p class="section-label">Active model</p>
@@ -193,6 +300,7 @@ function isSupportedQuotaPage(url?: string): boolean {
         :key="provider.providerId"
         :expanded="isProviderExpanded(provider.providerId)"
         :quota="provider"
+        @edit="openManualEditor(provider)"
         @toggle="toggleProvider(provider.providerId)"
       />
     </section>

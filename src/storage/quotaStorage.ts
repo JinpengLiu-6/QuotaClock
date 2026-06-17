@@ -36,6 +36,18 @@ export async function getProviderQuota(providerId: string): Promise<ProviderQuot
   }
 }
 
+export async function deleteProviderQuota(providerId: string): Promise<void> {
+  if (!hasChromeStorage()) {
+    return;
+  }
+
+  try {
+    await chrome.storage.local.remove(getQuotaStorageKey(providerId));
+  } catch {
+    return;
+  }
+}
+
 export async function getAllProviderQuotas(): Promise<ProviderQuota[]> {
   if (!hasChromeStorage()) {
     return [];

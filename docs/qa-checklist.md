@@ -20,8 +20,20 @@ Use this checklist before merging a Chrome extension MVP branch.
 - [ ] Codex card source changes from `mock` to `dom`.
 - [ ] 5h and Weekly values display correctly.
 - [ ] Error message appears when the Rate limits panel is not open.
+- [ ] Scan debug panel appears on parse failure.
 
-## C. HUD Injection
+## C. Manual Provider Input
+
+- [ ] Click Edit on Claude.
+- [ ] Save a new percentage and reset value.
+- [ ] Claude card source changes to `manual`.
+- [ ] Recommendation updates from the manual percentage.
+- [ ] Close and reopen popup.
+- [ ] Manual values persist.
+- [ ] Click Reset mock.
+- [ ] Provider returns to simulation data.
+
+## D. HUD Injection
 
 - [ ] Open `https://chatgpt.com/`.
 - [ ] HUD appears near top-right.
@@ -31,7 +43,7 @@ Use this checklist before merging a Chrome extension MVP branch.
 - [ ] Refresh the page.
 - [ ] HUD still appears only once.
 
-## D. HUD Interaction
+## E. HUD Interaction
 
 - [ ] Click HUD to expand.
 - [ ] Click Collapse to collapse.
@@ -43,7 +55,7 @@ Use this checklist before merging a Chrome extension MVP branch.
 - [ ] HUD position persists.
 - [ ] Dragging should not toggle expand/collapse.
 
-## E. ChatGPT Navigation
+## F. ChatGPT Navigation
 
 - [ ] Switch between chats.
 - [ ] Start a new chat.
@@ -51,13 +63,13 @@ Use this checklist before merging a Chrome extension MVP branch.
 - [ ] HUD remains available.
 - [ ] HUD is not duplicated.
 
-## F. Privacy
+## G. Privacy
 
 - [ ] No network request is made by QuotaClock.
 - [ ] No chat content is saved.
-- [ ] Only `quota:codex` and `hud:position` are stored for the Codex scan and HUD placement.
+- [ ] Only `quota:{providerId}` and `hud:position` are stored for quota data and HUD placement.
 
-## G. Visual QA
+## H. Visual QA
 
 - [ ] Popup height is not clipped.
 - [ ] Provider list scrolls correctly.

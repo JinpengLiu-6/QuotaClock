@@ -10,6 +10,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+  edit: [];
   toggle: [];
 }>();
 
@@ -65,6 +66,14 @@ function getLimitValue(limit: QuotaLimit): string {
       <div class="provider-badges">
         <span class="status-chip" :data-status="status">{{ formatCommandStatus(status) }}</span>
         <span class="source-dot">● {{ quota.source }}</span>
+        <button
+          class="card-mini-button"
+          type="button"
+          aria-label="Edit quota manually"
+          @click.stop="emit('edit')"
+        >
+          Edit
+        </button>
         <span class="expand-indicator" aria-hidden="true">{{ expanded ? '−' : '+' }}</span>
       </div>
     </div>

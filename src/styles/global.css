@@ -215,6 +215,101 @@ p {
   line-height: 1.35;
 }
 
+.manual-editor {
+  margin-top: 6px;
+  border: 1px solid rgba(56, 189, 248, 0.26);
+  border-radius: 9px;
+  padding: 8px;
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 0.88), rgba(30, 41, 59, 0.72)),
+    radial-gradient(circle at 100% 0%, rgba(139, 92, 246, 0.14), transparent 40%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.manual-editor-head,
+.manual-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.manual-editor-head h2 {
+  margin-top: 1px;
+  color: var(--qc-text);
+  font-size: 14px;
+  line-height: 1.15;
+}
+
+.manual-limit-list {
+  display: grid;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.manual-limit-row {
+  display: grid;
+  grid-template-columns: minmax(54px, 0.78fr) minmax(45px, 0.55fr) minmax(68px, 0.85fr) minmax(64px, 0.78fr);
+  align-items: center;
+  gap: 5px;
+}
+
+.manual-limit-row span {
+  overflow: hidden;
+  color: #cbd5e1;
+  font-size: 11px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manual-limit-row input {
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 6px;
+  padding: 5px;
+  color: var(--qc-text);
+  background: rgba(2, 6, 23, 0.42);
+  font-size: 11px;
+  outline: none;
+}
+
+.manual-limit-row input:focus {
+  border-color: rgba(56, 189, 248, 0.56);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.12);
+}
+
+.manual-actions {
+  margin-top: 7px;
+  justify-content: flex-end;
+}
+
+.secondary-button,
+.card-mini-button {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 7px;
+  color: var(--qc-text-muted);
+  background: rgba(15, 23, 42, 0.62);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.secondary-button {
+  min-height: 30px;
+  padding: 5px 9px;
+}
+
+.secondary-button:hover,
+.secondary-button:focus-visible,
+.card-mini-button:hover,
+.card-mini-button:focus-visible {
+  border-color: rgba(56, 189, 248, 0.42);
+  color: var(--qc-text);
+  outline: 2px solid rgba(56, 189, 248, 0.2);
+  outline-offset: 2px;
+}
+
 .scan-debug-panel {
   margin-top: 6px;
   border: 1px solid rgba(148, 163, 184, 0.2);
@@ -525,6 +620,11 @@ p {
   font-size: 10px;
   font-weight: 850;
   text-transform: lowercase;
+}
+
+.card-mini-button {
+  min-height: 18px;
+  padding: 2px 6px;
 }
 
 .expand-indicator {

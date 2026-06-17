@@ -14,15 +14,18 @@ Screenshot placeholder: popup dashboard and ChatGPT/Codex HUD previews will be a
 - Vue 3 + TypeScript + Vite popup dashboard.
 - Local-only quota cache with `chrome.storage.local`.
 - SVG quota clock with dual-ring support for short-term and weekly limits.
-- Mock provider adapters for Codex, Claude, DeepSeek, and Qwen.
+- Codex / ChatGPT DOM scan for visible Rate limits remaining text.
+- ChatGPT page HUD with local scan, drag, collapse, and persisted position.
+- Manual local quota input for Codex, Claude, DeepSeek, and Qwen.
+- Mock provider adapters as defaults before manual or DOM data exists.
 - No backend, no analytics, no telemetry.
 
 ## Supported Providers
 
-- Codex / ChatGPT: mock popup data in the current UX prototype.
-- Claude: mock provider adapter.
-- DeepSeek: mock provider adapter.
-- Qwen: mock provider adapter.
+- Codex / ChatGPT: DOM scan from visible Rate limits remaining text, plus manual input.
+- Claude: manual input with mock default.
+- DeepSeek: manual balance input with mock default.
+- Qwen: manual input with mock default.
 
 ## Development
 
@@ -102,8 +105,8 @@ Current prototype status:
 
 - The popup dashboard starts with mock data for Codex, Claude, DeepSeek, and Qwen.
 - Scan can replace Codex mock data with DOM-parsed quota data on supported ChatGPT/Codex pages.
-- Claude, DeepSeek, and Qwen remain mock providers.
-- The ChatGPT/Codex HUD remains a future testing target.
+- Claude, DeepSeek, and Qwen can be updated manually and stored locally.
+- The ChatGPT/Codex HUD appears on supported ChatGPT pages and shares storage with the popup.
 
 For a fuller checklist, see [docs/testing-guide.md](./docs/testing-guide.md).
 
@@ -116,13 +119,13 @@ For a fuller checklist, see [docs/testing-guide.md](./docs/testing-guide.md).
 5. Select the generated `dist` directory.
 6. Open the QuotaClock popup from the Chrome toolbar.
 
-At this stage, the popup starts with mock quota data. On `chatgpt.com` or `chat.openai.com`, Scan can read visible Rate limits remaining text and update Codex locally.
+At this stage, the popup starts with mock quota data. On `chatgpt.com` or `chat.openai.com`, Scan can read visible Rate limits remaining text and update Codex locally. Providers can also be edited manually from their cards.
 
 ## Privacy
 
 QuotaClock stores quota data locally in the browser and does not send it to any server.
 
-QuotaClock does not upload user data, does not use analytics, and does not intentionally read conversation content. The current popup prototype uses mock data only; future Codex quota parsing should read only quota-related labels such as Rate limits remaining, 5h, Weekly, and percentage values.
+QuotaClock does not upload user data, does not use analytics, and does not intentionally save conversation content. Codex quota parsing reads visible page text locally and extracts quota-related labels such as Rate limits remaining, 5h, Weekly, and percentage values. Manual provider data is stored only in `chrome.storage.local`.
 
 ## Roadmap
 

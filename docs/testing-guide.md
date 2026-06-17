@@ -39,7 +39,7 @@ The current popup uses mock data for:
 - DeepSeek
 - Qwen
 
-Claude, DeepSeek, and Qwen remain mock providers. Codex can be replaced with DOM data when Scan succeeds on a supported ChatGPT/Codex page.
+Claude, DeepSeek, and Qwen start with mock data. They can be replaced with manual local data from each provider card. Codex can be replaced with DOM data when Scan succeeds on a supported ChatGPT/Codex page.
 
 Check that each provider card shows:
 
@@ -50,6 +50,25 @@ Check that each provider card shows:
 - Status
 - Recommendation
 - QuotaClockDial
+
+## Testing Manual Provider Input
+
+Manual input is local-only and useful for providers that do not have a DOM parser yet.
+
+1. Open the QuotaClock popup.
+2. Click Edit on Claude, DeepSeek, or Qwen.
+3. Change the percentage, balance text, or reset text.
+4. Click Save.
+5. Confirm the provider source changes to `manual`.
+6. Close and reopen the popup.
+7. Confirm the manual values persist.
+8. Click Edit again, then Reset mock.
+9. Confirm the provider returns to simulation data.
+
+Expected storage keys:
+
+- Manual provider data is saved under `quota:{providerId}`.
+- Reset mock removes that provider key from `chrome.storage.local`.
 
 ## Testing Codex Scan
 
