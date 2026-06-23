@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vue from '@vitejs/plugin-vue';
@@ -6,7 +6,7 @@ import { defineConfig, type Plugin } from 'vite';
 
 const rootDir = dirname(fileURLToPath(import.meta.url));
 
-function copyExtensionAssets(): Plugin {
+function extensionBuildGuard(): Plugin {
   const assets = [['src/manifest.json', 'dist/manifest.json']] satisfies Array<
     [string, string]
   >;
@@ -26,12 +26,19 @@ function copyExtensionAssets(): Plugin {
         copyFileSync(generatedPopup, resolve(rootDir, 'dist/popup.html'));
         rmSync(resolve(rootDir, 'dist/src'), { recursive: true, force: true });
       }
+
+      const contentScript = resolve(rootDir, 'dist/content/contentScript.js');
+      const contentScriptCode = readFileSync(contentScript, 'utf8');
+
+      if (/\bimport\s*(?:\(|[\s{*])/.test(contentScriptCode)) {
+        throw new Error('contentScript.js must not contain import syntax. Chrome content scripts are classic scripts.');
+      }
     },
   };
 }
 
 export default defineConfig({
-  plugins: [vue(), copyExtensionAssets()],
+  plugins: [vue(), extensionBuildGuard()],
   publicDir: 'public',
   build: {
     emptyOutDir: true,
