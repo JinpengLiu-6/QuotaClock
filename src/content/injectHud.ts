@@ -1,50 +1,70 @@
+import type { HudPosition, ProviderQuota, RefreshQuotaResponse } from '../providers/types';
+import { loadHudPosition, loadProviderQuota, saveHudPosition } from './contentQuota';
+
 const HUD_ROOT_ID = 'quotaclock-hud-root';
-const HUD_ENTRY_PATH = 'content/hudEntry.js';
+const HUD_WIDTH = 210;
+const MIN_VISIBLE_WIDTH = 80;
+const MIN_VISIBLE_HEIGHT = 60;
+const DRAG_THRESHOLD = 4;
+const DEFAULT_TOP = 88;
+const DEFAULT_RIGHT = 20;
 
 let hudObserver: MutationObserver | null = null;
 let isMountingHud = false;
-let hudLoadFailed = false;
 
-export function injectHud(): void {
+interface HudState {
+  expanded: boolean;
+  quota: ProviderQuota | null;
+  position: HudPosition;
+  message: string;
+  scanning: boolean;
+  dragging: boolean;
+  didDrag: boolean;
+}
+
+export function injectHud(refreshQuota: () => Promise<RefreshQuotaResponse>): void {
   if (!isSupportedLocation(window.location.href)) {
     return;
   }
 
-  ensureHudRoot();
-  startHudObserver();
+  void ensureHudRoot(refreshQuota);
+  startHudObserver(refreshQuota);
 }
 
-function ensureHudRoot(): void {
-  if (!document.body || document.getElementById(HUD_ROOT_ID) || isMountingHud || hudLoadFailed) {
+async function ensureHudRoot(refreshQuota: () => Promise<RefreshQuotaResponse>): Promise<void> {
+  if (!document.body || document.getElementById(HUD_ROOT_ID) || isMountingHud) {
     return;
   }
 
   isMountingHud = true;
+  injectHudStyles();
+
   const root = document.createElement('div');
   root.id = HUD_ROOT_ID;
   document.body.append(root);
-  injectHudStyles();
 
-  void import(/* @vite-ignore */ chrome.runtime.getURL(HUD_ENTRY_PATH))
-    .then((module: { mountHudWidget: (root: HTMLElement) => void }) => {
-      module.mountHudWidget(root);
-    })
-    .catch(() => {
-      hudLoadFailed = true;
-      root.remove();
-    })
-    .finally(() => {
-      isMountingHud = false;
-    });
+  const [quota, position] = await Promise.all([loadProviderQuota('codex'), loadHudPosition()]);
+  const state: HudState = {
+    expanded: false,
+    quota,
+    position: clampPosition(position ?? getDefaultPosition()),
+    message: quota ? `Loaded ${quota.source} quota` : 'Idle',
+    scanning: false,
+    dragging: false,
+    didDrag: false,
+  };
+
+  renderHud(root, state, refreshQuota);
+  isMountingHud = false;
 }
 
-function startHudObserver(): void {
+function startHudObserver(refreshQuota: () => Promise<RefreshQuotaResponse>): void {
   if (hudObserver) {
     return;
   }
 
   hudObserver = new MutationObserver(() => {
-    window.requestAnimationFrame(ensureHudRoot);
+    window.requestAnimationFrame(() => void ensureHudRoot(refreshQuota));
   });
 
   hudObserver.observe(document.documentElement, {
@@ -53,8 +73,234 @@ function startHudObserver(): void {
   });
 }
 
+function renderHud(
+  root: HTMLElement,
+  state: HudState,
+  refreshQuota: () => Promise<RefreshQuotaResponse>,
+): void {
+  root.textContent = '';
+  const container = document.createElement('aside');
+  container.className = `qc-hud${state.expanded ? ' qc-hud-expanded' : ''}${state.dragging ? ' qc-hud-dragging' : ''}`;
+  container.setAttribute('aria-label', 'QuotaClock ChatGPT quota overlay');
+  container.style.left = `${state.position.left}px`;
+  container.style.top = `${state.position.top}px`;
+
+  const compactButton = document.createElement('button');
+  compactButton.className = 'qc-hud-compact';
+  compactButton.type = 'button';
+  compactButton.setAttribute('aria-expanded', String(state.expanded));
+  compactButton.setAttribute('aria-label', 'Toggle QuotaClock overlay');
+  compactButton.append(
+    createElement('span', 'qc-hud-dot'),
+    createElement('span', 'qc-hud-name', 'QuotaClock'),
+    createElement('strong', undefined, getMainValue(state.quota)),
+  );
+
+  const source = state.quota?.source;
+  if (source) {
+    compactButton.append(createElement('small', undefined, source));
+  }
+
+  compactButton.addEventListener('click', () => {
+    if (state.didDrag) {
+      state.didDrag = false;
+      return;
+    }
+
+    state.expanded = !state.expanded;
+    renderHud(root, state, refreshQuota);
+  });
+  compactButton.addEventListener('pointerdown', (event) => startDrag(event, root, state, refreshQuota));
+  container.append(compactButton);
+
+  if (state.expanded) {
+    container.append(createPanel(root, state, refreshQuota));
+  }
+
+  root.append(container);
+}
+
+function createPanel(
+  root: HTMLElement,
+  state: HudState,
+  refreshQuota: () => Promise<RefreshQuotaResponse>,
+): HTMLElement {
+  const panel = document.createElement('section');
+  panel.className = 'qc-hud-panel';
+
+  const header = document.createElement('header');
+  header.className = 'qc-hud-panel-head';
+  const headerCopy = document.createElement('div');
+  headerCopy.append(
+    createElement('p', undefined, 'Codex'),
+    createElement('span', undefined, `Source: ${state.quota?.source ?? 'Unknown'}`),
+  );
+  const collapseButton = document.createElement('button');
+  collapseButton.type = 'button';
+  collapseButton.className = 'qc-hud-link-button';
+  collapseButton.textContent = 'Collapse';
+  collapseButton.addEventListener('click', (event) => {
+    event.stopPropagation();
+    state.expanded = false;
+    renderHud(root, state, refreshQuota);
+  });
+  header.append(headerCopy, collapseButton);
+  panel.append(header);
+
+  const limitList = document.createElement('div');
+  limitList.className = 'qc-hud-limit-list';
+  const limits = state.quota?.limits ?? [];
+
+  if (limits.length === 0) {
+    const row = createElement('div', 'qc-hud-limit');
+    row.append(createElement('span', undefined, 'Quota'), createElement('strong', undefined, 'Unknown'));
+    limitList.append(row);
+  } else {
+    for (const limit of limits) {
+      const row = createElement('div', 'qc-hud-limit');
+      row.append(
+        createElement('span', undefined, limit.label),
+        createElement('strong', undefined, getLimitValue(limit)),
+        createElement('small', undefined, `reset ${limit.resetAtText ?? 'Unknown'}`),
+      );
+      limitList.append(row);
+    }
+  }
+
+  const recommendation = createElement(
+    'p',
+    'qc-hud-recommendation',
+    `Recommendation: ${state.quota?.recommendation ?? 'Open Rate limits panel and scan again.'}`,
+  );
+  const lastUpdated = createElement('p', 'qc-hud-meta', `Last updated: ${getUpdatedLabel(state.quota)}`);
+  const note = createElement('p', 'qc-hud-note', state.message);
+  const scanButton = document.createElement('button');
+  scanButton.className = 'qc-hud-scan';
+  scanButton.type = 'button';
+  scanButton.disabled = state.scanning;
+  scanButton.textContent = state.scanning ? 'Scanning' : 'Scan';
+  scanButton.addEventListener('click', async (event) => {
+    event.stopPropagation();
+    state.scanning = true;
+    state.message = 'Scanning current page...';
+    renderHud(root, state, refreshQuota);
+
+    const response = await refreshQuota();
+    state.scanning = false;
+
+    if (response.ok && response.quota) {
+      state.quota = response.quota;
+      state.message = 'Updated from DOM';
+    } else {
+      state.message = 'Open Rate limits panel and scan again.';
+    }
+
+    renderHud(root, state, refreshQuota);
+  });
+
+  panel.append(limitList, recommendation, lastUpdated, note, scanButton);
+  return panel;
+}
+
+function startDrag(
+  event: PointerEvent,
+  root: HTMLElement,
+  state: HudState,
+  refreshQuota: () => Promise<RefreshQuotaResponse>,
+): void {
+  const start = { x: event.clientX, y: event.clientY };
+  const offset = {
+    top: event.clientY - state.position.top,
+    left: event.clientX - state.position.left,
+  };
+
+  state.dragging = true;
+  state.didDrag = false;
+
+  const moveHud = (moveEvent: PointerEvent): void => {
+    const distance = Math.hypot(moveEvent.clientX - start.x, moveEvent.clientY - start.y);
+
+    if (distance <= DRAG_THRESHOLD) {
+      return;
+    }
+
+    state.didDrag = true;
+    state.position = clampPosition({
+      top: moveEvent.clientY - offset.top,
+      left: moveEvent.clientX - offset.left,
+    });
+    renderHud(root, state, refreshQuota);
+  };
+
+  const stopDrag = (): void => {
+    state.dragging = false;
+    window.removeEventListener('pointermove', moveHud);
+    void saveHudPosition(state.position);
+    renderHud(root, state, refreshQuota);
+  };
+
+  window.addEventListener('pointermove', moveHud);
+  window.addEventListener('pointerup', stopDrag, { once: true });
+}
+
 function isSupportedLocation(href: string): boolean {
   return href.startsWith('https://chatgpt.com/') || href.startsWith('https://chat.openai.com/');
+}
+
+function getDefaultPosition(): HudPosition {
+  return {
+    top: DEFAULT_TOP,
+    left: Math.max(8, window.innerWidth - HUD_WIDTH - DEFAULT_RIGHT),
+  };
+}
+
+function clampPosition(position: HudPosition): HudPosition {
+  return {
+    top: Math.max(8, Math.min(window.innerHeight - MIN_VISIBLE_HEIGHT, position.top)),
+    left: Math.max(8, Math.min(window.innerWidth - MIN_VISIBLE_WIDTH, position.left)),
+  };
+}
+
+function getMainValue(quota: ProviderQuota | null): string {
+  const percentages = quota?.limits
+    .map((limit) => limit.remainingPercent)
+    .filter((value): value is number => typeof value === 'number');
+
+  if (!percentages || percentages.length === 0) {
+    return 'Unknown';
+  }
+
+  return `${Math.min(...percentages)}%`;
+}
+
+function getLimitValue(limit: ProviderQuota['limits'][number]): string {
+  if (typeof limit.remainingPercent === 'number') {
+    return `${limit.remainingPercent}%`;
+  }
+
+  return limit.balanceText ?? 'Unknown';
+}
+
+function getUpdatedLabel(quota: ProviderQuota | null): string {
+  return quota?.updatedAt ? new Date(quota.updatedAt).toLocaleTimeString() : 'Unknown';
+}
+
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+  textContent?: string,
+): HTMLElementTagNameMap[K] {
+  const element = document.createElement(tagName);
+
+  if (className) {
+    element.className = className;
+  }
+
+  if (textContent) {
+    element.textContent = textContent;
+  }
+
+  return element;
 }
 
 function injectHudStyles(): void {

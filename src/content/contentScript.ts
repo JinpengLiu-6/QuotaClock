@@ -1,20 +1,17 @@
-import type { ProviderQuota, RefreshQuotaResponse, ScanDebugInfo } from '../providers/types';
+import type { RefreshQuotaResponse, ScanDebugInfo } from '../providers/types';
 import { saveProviderQuota } from './contentQuota';
 import { injectHud } from './injectHud';
-
-const CODEX_PARSER_ENTRY_PATH = 'content/codexParser.js';
+import {
+  extractQuotaCandidateText,
+  parseCodexQuotaFromDocument,
+} from './parsers/codexParser';
 
 interface ContentProviderPageInfo {
   providerName: string;
   supportsDomScan: boolean;
 }
 
-interface CodexParserModule {
-  extractQuotaCandidateText(text: string): string;
-  parseCodexQuotaFromDocument(doc?: Document): ProviderQuota | null;
-}
-
-injectHud();
+injectHud(refreshCodexQuota);
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === 'GET_PROVIDER_PAGE') {
@@ -55,15 +52,14 @@ async function refreshCodexQuota(): Promise<RefreshQuotaResponse> {
     };
   }
 
-  const parser = await loadCodexParser();
-  const parsed = parser.parseCodexQuotaFromDocument(document);
+  const parsed = parseCodexQuotaFromDocument(document);
 
   if (!parsed) {
     const text = document.body?.innerText ?? '';
     return {
       ok: false,
       error: 'Could not read quota. Open Rate limits panel and scan again.',
-      debug: buildScanDebug(text, Boolean(document.body), parser.extractQuotaCandidateText(text)),
+      debug: buildScanDebug(text, Boolean(document.body), extractQuotaCandidateText(text)),
     };
   }
 
@@ -73,10 +69,6 @@ async function refreshCodexQuota(): Promise<RefreshQuotaResponse> {
     ok: true,
     quota: parsed,
   };
-}
-
-async function loadCodexParser(): Promise<CodexParserModule> {
-  return import(/* @vite-ignore */ chrome.runtime.getURL(CODEX_PARSER_ENTRY_PATH)) as Promise<CodexParserModule>;
 }
 
 function buildScanDebug(text: string, hasBody: boolean, matchedSnippet?: string): ScanDebugInfo {

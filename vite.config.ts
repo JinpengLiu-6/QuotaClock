@@ -37,11 +37,9 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        hudEntry: resolve(rootDir, 'src/content/hudEntry.ts'),
         popup: resolve(rootDir, 'src/popup/popup.html'),
         serviceWorker: resolve(rootDir, 'src/background/serviceWorker.ts'),
         contentScript: resolve(rootDir, 'src/content/contentScript.ts'),
-        codexParser: resolve(rootDir, 'src/content/codexParserEntry.ts'),
       },
       output: {
         entryFileNames: (chunkInfo) => {
@@ -51,14 +49,6 @@ export default defineConfig({
 
           if (chunkInfo.name === 'contentScript') {
             return 'content/contentScript.js';
-          }
-
-          if (chunkInfo.name === 'hudEntry') {
-            return 'content/hudEntry.js';
-          }
-
-          if (chunkInfo.name === 'codexParser') {
-            return 'content/codexParser.js';
           }
 
           return 'assets/[name].js';
