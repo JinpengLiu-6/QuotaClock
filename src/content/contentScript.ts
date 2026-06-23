@@ -1,9 +1,13 @@
 import type { ProviderQuota, RefreshQuotaResponse, ScanDebugInfo } from '../providers/types';
 import { saveProviderQuota } from './contentQuota';
 import { injectHud } from './injectHud';
-import { detectProviderPage } from '../utils/providerDetection';
 
 const CODEX_PARSER_ENTRY_PATH = 'content/codexParser.js';
+
+interface ContentProviderPageInfo {
+  providerName: string;
+  supportsDomScan: boolean;
+}
 
 interface CodexParserModule {
   extractQuotaCandidateText(text: string): string;
@@ -112,4 +116,36 @@ function sliceAroundIndex(text: string, index: number, radius: number): string {
   const start = Math.max(0, index - radius);
   const end = Math.min(text.length, index + radius);
   return text.slice(start, end);
+}
+
+function detectProviderPage(url: string): ContentProviderPageInfo | null {
+  if (/^https:\/\/chatgpt\.com(?:\/|$)/i.test(url) || /^https:\/\/chat\.openai\.com(?:\/|$)/i.test(url)) {
+    return {
+      providerName: 'Codex',
+      supportsDomScan: true,
+    };
+  }
+
+  if (/^https:\/\/claude\.ai(?:\/|$)/i.test(url)) {
+    return {
+      providerName: 'Claude',
+      supportsDomScan: false,
+    };
+  }
+
+  if (/^https:\/\/www\.deepseek\.com(?:\/|$)/i.test(url)) {
+    return {
+      providerName: 'DeepSeek',
+      supportsDomScan: false,
+    };
+  }
+
+  if (/^https:\/\/chat\.qwen\.ai(?:\/|$)/i.test(url)) {
+    return {
+      providerName: 'Qwen',
+      supportsDomScan: false,
+    };
+  }
+
+  return null;
 }
